@@ -6,5 +6,5 @@ See [the official book repo](https://github.com/sixeyed/kiamol) for resources.
 
 ## TODO
 - [ ] rename this to just paulkaefer/kiamol?
-- [ ] join the forum & link it here
+- [ ] join the forum (see p. xviii) & link it here
 
