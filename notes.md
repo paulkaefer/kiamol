@@ -1,3 +1,13 @@
+Setup/teardown
+Setup:
+```bash
+eksctl create cluster --name=kiamol --nodes=1 --node-type=t3.large
+```
+
+Teardown:
+* delete nodegroup(s) from cluster's compute tab.
+* delete EKS cluster.
+
 Chapter 2
 * p. 18, my output for the third command:
 ```bash
