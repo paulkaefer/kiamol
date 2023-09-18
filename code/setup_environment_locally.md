@@ -113,5 +113,78 @@ NAME                             READY   STATUS    RESTARTS   AGE
 hello-kiamol-4-fb9d497f8-rlzg7   1/1     Running   0          4s
 ```
 
+# Section 2.4: Working with applications in Pods
+
+## check the internal IP address of the first Pod we ran: 
+`kubectl get pod hello-kiamol -o custom-columns=NAME:metadata.name,POD_IP:status.podIP`
+```bash
+NAME           POD_IP
+hello-kiamol   10.1.0.16
+```
+ 
+## run an interactive shell command in the Pod:
+`kubectl exec -it hello-kiamol -- sh`
+ 
+## inside the Pod, check the IP address:
+`hostname -i`
+ 
+## and test the web app:
+`wget -O - http://localhost | head -n 4`
+ 
+## leave the shell:
+`exit`
+
+## print the latest container logs from Kubernetes:
+`kubectl logs --tail=2 hello-kiamol`
+```bash
+2023/09/14 17:21:04 [error] 34#34: *1 open() "/usr/share/nginx/html/favicon.ico" failed (2: No such file or directory), client: 127.0.0.1, server: localhost, request: "GET /favicon.ico HTTP/1.1", host: "localhost:8080", referrer: "http://localhost:8080/"
+127.0.0.1 - - [18/Sep/2023:20:03:20 +0000] "GET / HTTP/1.1" 200 353 "-" "Wget" "-"
+```
+ 
+## ...and compare the actual container logs--if you’re using Docker:
+`docker container logs --tail=2 $(docker container ls -q --filter label=io.kubernetes.container.name=hello-kiamol)`
+
+## make a call to the web app inside the container for the Pod we created from the Deployment YAML file: 
+`kubectl exec deploy/hello-kiamol-4 -- sh -c 'wget -O - http://localhost > /dev/null'`
+```bash
+Connecting to localhost (127.0.0.1:80)
+writing to stdout
+-                    100% |********************************|   353  0:00:00 ETA
+written to stdout
+```
+ 
+## and check that Pod’s logs:
+`kubectl logs --tail=1 -l app=hello-kiamol-4`
+
+## create the local directory:
+`mkdir -p /tmp/kiamol/ch02`
+ 
+## copy the web page from the Pod:
+`kubectl cp hello-kiamol:/usr/share/nginx/html/index.html /tmp/kiamol/ch02/index.html`
+```bash
+tar: removing leading '/' from member names
+```
+ 
+## check the local file contents:
+`cat /tmp/kiamol/ch02/index.html`
+```bash
+<html>
+  <body>
+    <h1>
+      Hello from Chapter 2!
+    </h1>
+    <h2>
+      This is
+      <a
+        href="https://www.manning.com/books/learn-kubernetes-in-a-month-of-lunches"
+        >Learn Kubernetes in a Month of Lunches</a
+      >.
+    </h2>
+    <h3>By <a href="https://blog.sixeyed.com">Elton Stoneman</a>.</h3>
+  </body>
+</html>
+```
+
+
 
 
