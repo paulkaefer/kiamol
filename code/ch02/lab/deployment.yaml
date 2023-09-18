@@ -1,8 +1,21 @@
-apiVersion: v1
-kind: Pod
+apiVersion: apps/v1
+kind: Deployment
 metadata:
-  name: whoami-1
+  name: whoami
+  labels:
+    app: whoami
+    version: ch02
 spec:
-  containers:
-    - name: web
-      image: kiamol/ch02-whoami
+  selector:
+    matchLabels:
+      app: whoami
+      version: ch02
+  template:
+    metadata:
+      labels:
+        app: whoami
+        version: ch02
+    spec:
+      containers:
+        - name: web
+          image: kiamol/ch02-whoami
