@@ -167,7 +167,7 @@ tar: removing leading '/' from member names
  
 ## check the local file contents:
 `cat /tmp/kiamol/ch02/index.html`
-```bash
+```html
 <html>
   <body>
     <h1>
