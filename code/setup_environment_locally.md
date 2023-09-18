@@ -46,6 +46,8 @@ kubectl port-forward pod/hello-kiamol 8080:80
  
 ## when you’re done press ctrl-c to end the port forward
 
+# 2.2 Running Pods with controllers
+
 ## create a Deployment called "hello-kiamol-2", running the same web app:
 kubectl create deployment hello-kiamol-2 --image=kiamol/ch02-hello-kiamol
  
@@ -67,7 +69,35 @@ kubectl label pods -l app=hello-kiamol-2 --overwrite app=hello-kiamol-x
 ## fetch Pods again:
 kubectl get pods -o custom-columns=NAME:metadata.name,LABELS:metadata.labels
 
-# 2.2 Running Pods with controllers
+## run a port forward from your local machine to the Deployment:
+kubectl port-forward deploy/hello-kiamol-2 8080:80
+ 
+## browse to http://localhost:8080
+## when you’re done, exit with ctrl-c
+
+# Section 2.3: Defining Deployments in application manifests
+
+## switch from the root of the kiamol repository to the chapter 2 folder:
+cd ch02
+ 
+## deploy the application from the manifest file:
+kubectl apply -f pod.yaml
+## Results:
+```bash
+pod/hello-kiamol-3 created
+```
+ 
+## list running Pods:
+kubectl get pods
+## Results:
+```bash
+NAME                              READY   STATUS    RESTARTS   AGE
+hello-kiamol                      1/1     Running   1          4d2h
+hello-kiamol-2-5dbf59b864-f72vp   1/1     Running   0          4d2h
+hello-kiamol-2-5dbf59b864-vk6br   1/1     Running   0          4d1h
+hello-kiamol-3                    1/1     Running   0          3s
+```
+
 
 
 
