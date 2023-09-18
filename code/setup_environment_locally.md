@@ -185,6 +185,67 @@ tar: removing leading '/' from member names
 </html>
 ```
 
+# Section 2.5: Understanding Kubernetes resource management
+
+## list all running Pods:
+`kubectl get pods`
+```bash
+NAME                              READY   STATUS    RESTARTS   AGE
+hello-kiamol                      1/1     Running   1          4d2h
+hello-kiamol-2-5dbf59b864-f72vp   1/1     Running   0          4d2h
+hello-kiamol-2-5dbf59b864-vk6br   1/1     Running   0          4d2h
+hello-kiamol-3                    1/1     Running   0          14m
+hello-kiamol-4-fb9d497f8-rlzg7    1/1     Running   0          12m
+```
+ 
+## delete all Pods:
+`kubectl delete pods --all`
+```bash
+pod "hello-kiamol" deleted
+pod "hello-kiamol-2-5dbf59b864-f72vp" deleted
+pod "hello-kiamol-2-5dbf59b864-vk6br" deleted
+pod "hello-kiamol-3" deleted
+pod "hello-kiamol-4-fb9d497f8-rlzg7" deleted
+```
+ 
+## check again:
+`kubectl get pods`
+```bash
+NAME                              READY   STATUS    RESTARTS   AGE
+hello-kiamol-2-5dbf59b864-t6m95   1/1     Running   0          21s
+hello-kiamol-4-fb9d497f8-7xkd7    1/1     Running   0          21s
+```
+
+## view Deployments:
+`kubectl get deploy`
+```bash
+NAME             READY   UP-TO-DATE   AVAILABLE   AGE
+hello-kiamol-2   1/1     1            1           4d2h
+hello-kiamol-4   1/1     1            1           13m
+```
+ 
+## delete all Deployments:
+`kubectl delete deploy --all`
+```bash
+deployment.apps "hello-kiamol-2" deleted
+deployment.apps "hello-kiamol-4" delete
+```
+ 
+## view Pods:
+`kubectl get pods`
+```bash
+No resources found in default namespace.
+```
+
+## check all resources:
+`kubectl get all`
+```bash
+NAME                 TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)   AGE
+service/kubernetes   ClusterIP   10.96.0.1    <none>        443/TCP   4d4h
+```
+
+
+
 
 
 
