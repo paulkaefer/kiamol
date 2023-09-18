@@ -82,14 +82,12 @@ cd ch02
  
 ## deploy the application from the manifest file:
 kubectl apply -f pod.yaml
-## Results:
 ```bash
 pod/hello-kiamol-3 created
 ```
  
 ## list running Pods:
 kubectl get pods
-## Results:
 ```bash
 NAME                              READY   STATUS    RESTARTS   AGE
 hello-kiamol                      1/1     Running   1          4d2h
@@ -98,6 +96,21 @@ hello-kiamol-2-5dbf59b864-vk6br   1/1     Running   0          4d1h
 hello-kiamol-3                    1/1     Running   0          3s
 ```
 
+## deploy the application from the manifest file:
+kubectl apply -f https://raw.githubusercontent.com/sixeyed/kiamol/master/ch02/pod.yaml
+```bash
+pod/hello-kiamol-3 unchanged
+```
+
+## run the app using the Deployment manifest:
+kubectl apply -f deployment.yaml
+ 
+## find Pods managed by the new Deployment:
+`kubectl get pods -l app=hello-kiamol-4`
+```bash
+NAME                             READY   STATUS    RESTARTS   AGE
+hello-kiamol-4-fb9d497f8-rlzg7   1/1     Running   0          4s
+```
 
 
 
