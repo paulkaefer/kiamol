@@ -522,7 +522,7 @@ sleep-2   <none>      39m
 
 
 ## delete Deployments:
-kubectl delete deploy --all
+`kubectl delete deploy --all`
 ```
 deployment.apps "numbers-api" deleted
 deployment.apps "numbers-web" deleted
