@@ -244,8 +244,307 @@ NAME                 TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)   AGE
 service/kubernetes   ClusterIP   10.96.0.1    <none>        443/TCP   4d4h
 ```
 
+# Chapter 3: Connecting Pods over the network with Services
+
+## start up your lab environment--run Docker Desktop if it's not running--and switch to this chapter’s directory in your copy of the source code:
+`cd ch03`
+ 
+## create two Deployments, which each run one Pod:
+`kubectl apply -f sleep/sleep1.yaml -f sleep/sleep2.yaml`
+ 
+## wait for the Pod to be ready:
+`kubectl wait --for=condition=Ready pod -l app=sleep-2`
+ 
+## check the IP address of the second Pod:
+`kubectl get pod -l app=sleep-2 --output jsonpath='{.items[0].status.podIP}'`
+```bash
+10.1.0.29
+```
+ 
+## use that address to ping the second Pod from the first:
+`kubectl exec deploy/sleep-1 -- ping -c 7 $(kubectl get pod -l app=sleep-2 --output jsonpath='{.items[0].status.podIP}')`
+```bash
+PING 10.1.0.29 (10.1.0.29): 56 data bytes
+64 bytes from 10.1.0.29: seq=0 ttl=64 time=0.059 ms
+64 bytes from 10.1.0.29: seq=1 ttl=64 time=0.113 ms
+64 bytes from 10.1.0.29: seq=2 ttl=64 time=0.180 ms
+64 bytes from 10.1.0.29: seq=3 ttl=64 time=0.385 ms
+64 bytes from 10.1.0.29: seq=4 ttl=64 time=0.252 ms
+64 bytes from 10.1.0.29: seq=5 ttl=64 time=0.382 ms
+64 bytes from 10.1.0.29: seq=6 ttl=64 time=0.313 ms
+
+--- 10.1.0.29 ping statistics ---
+7 packets transmitted, 7 packets received, 0% packet loss
+round-trip min/avg/max = 0.059/0.240/0.385 ms
+```
+
+## check the current Pod’s IP address:
+`kubectl get pod -l app=sleep-2 --output jsonpath='{.items[0].status.podIP}'`
+ 
+## delete the Pod so the Deployment replaces it:
+`kubectl delete pods -l app=sleep-2`
+ 
+## check the IP address of the replacement Pod:
+`kubectl get pod -l app=sleep-2 --output jsonpath='{.items[0].status.podIP}'`
+```bash
+10.1.0.31
+```
 
 
+## deploy the Service defined in listing 3.1:
+`kubectl apply -f sleep/sleep2-service.yaml`
+ 
+## show the basic details of the Service:
+`kubectl get svc sleep-2`
+```bash
+NAME      TYPE        CLUSTER-IP    EXTERNAL-IP   PORT(S)   AGE
+sleep-2   ClusterIP   10.98.2.165   <none>        80/TCP    6s
+```
+ 
+## run a ping command to check connectivity--this will fail:
+`kubectl exec deploy/sleep-1 -- ping -c 1 sleep-2`
+```bash
+PING sleep-2 (10.98.2.165): 56 data bytes
+
+--- sleep-2 ping statistics ---
+1 packets transmitted, 0 packets received, 100% packet loss
+command terminated with exit code 1
+```
+
+# Section 3.2: Routing traffic between Pods
+
+## run the website and API as separate Deployments: 
+`kubectl apply -f numbers/api.yaml -f numbers/web.yaml`
+```bash
+deployment.apps/numbers-api created
+deployment.apps/numbers-web created
+```
+ 
+## wait for the Pod to be ready:
+`kubectl wait --for=condition=Ready pod -l app=numbers-web`
+```bash
+pod/numbers-web-865c56b9d-9p4m7 condition met
+```
+ 
+## forward a port to the web app:
+`kubectl port-forward deploy/numbers-web 8080:80`
+ 
+## browse to the site at http://localhost:8080 and click the Go button--you'll see an error message
+```
+KIAMOL Random Number Generator
+RNG service unavailable!
+
+(Using API at: http://numbers-api/sixeyed/kiamol/master/ch03/numbers/rng)
+```
+ 
+## exit the port forward:
+ctrl-c
+
+## deploy the Service from listing 3.2:
+`kubectl apply -f numbers/api-service.yaml`
+```
+service/numbers-api created
+```
+
+## check the Service details:
+`kubectl get svc numbers-api`
+```bash
+NAME          TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)   AGE
+numbers-api   ClusterIP   10.108.103.175   <none>        80/TCP    32s
+```
+
+## forward a port to the web app:
+`kubectl port-forward deploy/numbers-web 8080:80`
+ 
+## browse to the site at http://localhost:8080 and click the Go button
+```
+KIAMOL Random Number Generator
+Here it is: 89
+
+(Using API at: http://numbers-api/sixeyed/kiamol/master/ch03/numbers/rng)
+```
+82, 90, 34, 24, 16 on refresh
+ 
+## exit the port forward:
+ctrl-c
+
+
+## check the name and IP address of the API Pod:
+`kubectl get pod -l app=numbers-api -o custom-columns=NAME:metadata.name,POD_IP:status.podIP`
+```
+NAME                           POD_IP
+numbers-api-7c599bfcf6-fd4qz   10.1.0.33
+```
+ 
+## delete that Pod:
+`kubectl delete pod -l app=numbers-api`
+```
+pod "numbers-api-7c599bfcf6-fd4qz" deleted
+```
+ 
+## check the replacement Pod:
+`kubectl get pod -l app=numbers-api -o custom-columns=NAME:metadata.name,POD_IP:status.podIP `
+```
+NAME                           POD_IP
+numbers-api-7c599bfcf6-rztxn   10.1.0.34
+```
+
+## forward a port to the web app:
+`kubectl port-forward deploy/numbers-web 8080:80`
+ 
+## browse to the site at http://localhost:8080 and click the Go button
+ 
+## exit the port forward:
+ctrl-c
+
+# Section 3.3: Routing external traffic to Pods
+
+## deploy the LoadBalancer Service for the website--if your firewall checks 
+## that you want to allow traffic, then it is OK to say yes:
+`kubectl apply -f numbers/web-service.yaml`
+ 
+## check the details of the Service:
+`kubectl get svc numbers-web`
+```
+NAME          TYPE           CLUSTER-IP     EXTERNAL-IP   PORT(S)          AGE
+numbers-web   LoadBalancer   10.101.94.89   localhost     8080:30122/TCP   5s
+```
+ 
+## use formatting to get the app URL from the EXTERNAL-IP field:
+`kubectl get svc numbers-web -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:8080'`
+```
+http://localhost:8080
+```
+
+
+# Section 3.4: Routing traffic outside Kubernetes
+
+## delete the current API Service:
+`kubectl delete svc numbers-api`
+ 
+## deploy a new ExternalName Service:
+`kubectl apply -f numbers-services/api-service-externalName.yaml`
+ 
+## check the Service configuration:
+`kubectl get svc numbers-api`
+```
+NAME          TYPE           CLUSTER-IP   EXTERNAL-IP                 PORT(S)   AGE
+numbers-api   ExternalName   <none>       raw.githubusercontent.com   <none>    6s
+```
+ 
+## refresh the website in your browser and test with the Go button
+```
+KIAMOL Random Number Generator
+RNG service unavailable!
+
+(Using API at: http://numbers-api/sixeyed/kiamol/master/ch03/numbers/rng)
+```
+
+I think it *should* be using https://raw.githubusercontent.com/sixeyed/kiamol/master/ch03/numbers/rng.
+
+
+## run the DNS lookup tool to resolve the Service name:
+`kubectl exec deploy/sleep-1 -- sh -c 'nslookup numbers-api | tail -n 5'`
+
+
+
+## remove the existing Service:
+`kubectl delete svc numbers-api`
+ 
+## deploy the headless Service:
+`kubectl apply -f numbers-services/api-service-headless.yaml`
+ 
+## check the Service:
+`kubectl get svc numbers-api`
+ 
+## check the endpoint: 
+`kubectl get endpoints numbers-api`
+ 
+## verify the DNS lookup:
+`kubectl exec deploy/sleep-1 -- sh -c 'nslookup numbers-api | grep "^[^*]"'`
+ 
+## browse to the app--it will fail when you try to get a number
+```
+KIAMOL Random Number Generator
+RNG service unavailable!
+
+(Using API at: http://numbers-api/sixeyed/kiamol/master/ch03/numbers/rng)
+```
+
+# Section 3.5: Understanding Kubernetes Service resolution
+
+## show the endpoints for the sleep-2 Service:
+`kubectl get endpoints sleep-2`
+```
+NAME      ENDPOINTS      AGE
+sleep-2   10.1.0.31:80   38m
+```
+ 
+## delete the Pod:
+`kubectl delete pods -l app=sleep-2`
+```
+pod "sleep-2-789c9f5fb8-45gtv" deleted
+```
+ 
+## check the endpoint is updated with the IP of the replacement Pod:
+`kubectl get endpoints sleep-2`
+```
+NAME      ENDPOINTS      AGE
+sleep-2   10.1.0.35:80   38m
+```
+ 
+## delete the whole Deployment:
+`kubectl delete deploy sleep-2`
+```
+deployment.apps "sleep-2" deleted
+```
+ 
+## check the endpoint still exists, with no IP addresses:
+`kubectl get endpoints sleep-2`
+```
+NAME      ENDPOINTS   AGE
+sleep-2   <none>      39m
+```
+
+
+## check the Services in the default namespace:
+`kubectl get svc --namespace default`
+
+## check Services in the system namespace:
+`kubectl get svc -n kube-system`
+
+## try a DNS lookup to a fully qualified Service name:
+`kubectl exec deploy/sleep-1 -- sh -c 'nslookup numbers-api.default.svc.cluster.local | grep "^[^*]"'`
+
+## and for a Service in the system namespace:
+`kubectl exec deploy/sleep-1 -- sh -c 'nslookup kube-dns.kube-system.svc.cluster.local | grep "^[^*]"'`
+
+
+
+## delete Deployments:
+kubectl delete deploy --all
+```
+deployment.apps "numbers-api" deleted
+deployment.apps "numbers-web" deleted
+deployment.apps "sleep-1" deleted
+```
+ 
+## and Services:
+`kubectl delete svc --all`
+```
+service "kubernetes" deleted
+service "numbers-api" deleted
+service "numbers-web" deleted
+service "sleep-2" deleted
+```
+ 
+## check what’s running:
+`kubectl get all`
+```
+NAME                 TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)   AGE
+service/kubernetes   ClusterIP   10.96.0.1    <none>        443/TCP   8s
+
+```
 
 
 
