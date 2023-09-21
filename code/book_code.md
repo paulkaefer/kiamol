@@ -547,4 +547,458 @@ service/kubernetes   ClusterIP   10.96.0.1    <none>        443/TCP   8s
 ```
 
 
+# Chapter 4: Configuring applications with ConfigMaps and Secrets
+
+## Section 4.1: How Kubernetes supplies configuration to apps
+## switch to the exercise directory for this chapter:
+`cd ch04`
+ 
+## deploy a Pod using the sleep image with no extra configuration:
+`kubectl apply -f sleep/sleep.yaml`
+```
+deployment.apps/sleep created
+```
+
+## wait for the Pod to be ready:
+`kubectl wait --for=condition=Ready pod -l app=sleep`
+```
+pod/sleep-8648c6f777-dbbpg condition met
+```
+ 
+## check some of the environment variables in the Pod container:
+`kubectl exec deploy/sleep -- printenv HOSTNAME KIAMOL_CHAPTER`
+```
+sleep-8648c6f777-dbbpg
+command terminated with exit code 1
+```
+
+
+## update the Deployment:
+`kubectl apply -f sleep/sleep-with-env.yaml`
+```
+deployment.apps/sleep configured
+```
+ 
+## check the same environment variables in the new Pod:
+`kubectl exec deploy/sleep -- printenv HOSTNAME KIAMOL_CHAPTER`
+```
+sleep-5b67d77966-f2dmt
+04
+```
+
+
+## create a ConfigMap with data from the command line:
+`kubectl create configmap sleep-config-literal --from-literal=kiamol.booksection='4.1415'`
+```
+configmap/sleep-config-literal created
+```
+ 
+## check the ConfigMap details:
+`kubectl get cm sleep-config-literal`
+```
+NAME                   DATA   AGE
+sleep-config-literal   1      9s
+```
+ 
+## show the friendly description of the ConfigMap:
+`kubectl describe cm sleep-config-literal`
+```
+Name:         sleep-config-literal
+Namespace:    default
+Labels:       <none>
+Annotations:  <none>
+
+Data
+====
+kiamol.booksection:
+----
+4.1415
+
+BinaryData
+====
+
+Events:  <none>
+```
+ 
+## deploy the updated Pod spec from listing 4.2:
+`kubectl apply -f sleep/sleep-with-configMap-env.yaml`
+```
+deployment.apps/sleep configured
+```
+ 
+## check the Kiamol environment variables:
+`kubectl exec deploy/sleep -- sh -c 'printenv | grep "^KIAMOL"'`
+```
+KIAMOL_CHAPTER=04
+```
+
+## Section 4.2: Storing and using configuration files in ConfigMaps
+
+
+## load an environment variable into a new ConfigMap:
+`kubectl create configmap sleep-config-env-file --from-env-file=sleep/ch04.env`
+```
+configmap/sleep-config-env-file created
+```
+ 
+## check the details of the ConfigMap:
+`kubectl get cm sleep-config-env-file`
+```
+NAME                    DATA   AGE
+sleep-config-env-file   4      13s
+```
+ 
+## update the Pod to use the new ConfigMap:
+`kubectl apply -f sleep/sleep-with-configMap-env-file.yaml`
+```
+deployment.apps/sleep configured
+```
+
+## check the values in the container:
+`kubectl exec deploy/sleep -- sh -c 'printenv | grep "^KIAMOL"'`
+Not the same results as the book...
+```
+KIAMOL_CHAPTER=04
+```
+
+
+## deploy the app with a Service to access it:
+`kubectl apply -f todo-list/todo-web.yaml`
+```
+deployment.apps/todo-web created
+```
+ 
+## wait for the Pod to be ready:
+`kubectl wait --for=condition=Ready pod -l app=todo-web`
+```
+pod/todo-web-659fff7795-kxrfq condition met
+```
+ 
+## get the address of the app:
+`kubectl get svc todo-web -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:8080'`
+```
+http://localhost:8080
+```
+
+## browse to the app and have a play around then try browsing to /config
+Doesn't work for me... `ERR_CONNECTION_REFUSED`.
+ 
+## check the application logs:
+`kubectl logs -l app=todo-web`
+```
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeNextResourceFilter>g__Awaited|25_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.Rethrow(ResourceExecutedContextSealed context)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.InvokeFilterPipelineAsync()
+      --- End of stack trace from previous location ---
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+         at Microsoft.AspNetCore.Routing.EndpointMiddleware.<Invoke>g__AwaitRequestTask|6_0(Endpoint endpoint, Task requestTask, ILogger logger)
+         at Microsoft.AspNetCore.Diagnostics.StatusCodePagesMiddleware.Invoke(HttpContext context)
+         at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Http.HttpProtocol.ProcessRequests[TContext](IHttpApplication`1 application)
+```
+
+## create the JSON ConfigMap:
+`kubectl apply -f todo-list/configMaps/todo-web-config-dev.yaml`
+```
+configmap/todo-web-config-dev created
+```
+ 
+## update the app to use the ConfigMap:
+`kubectl apply -f todo-list/todo-web-dev.yaml`
+```
+deployment.apps/todo-web configured
+```
+ 
+## refresh your web browser at the /config page for your Service 
+This works! Just the config + diagnostics pages. Diagnostics details:
+```
+Hostname  .NET Version  OS Architecture OS Description
+todo-web-b6d6f9ff5-rg5dz  .NET 6.0.8  Arm64 Linux 6.3.13-linuxkit #1 SMP PREEMPT Thu Sep 7 07:48:47 UTC 2023
+```
+
+Source code link: https://github.com/sixeyed/kiamol/tree/master/ch04/docker-images/todo-list
+
+
+# Section 4.3: Surfacing configuration data from ConfigMaps
+
+## show the default config file:
+`kubectl exec deploy/todo-web -- sh -c 'ls -l /app/app*.json'`
+```
+-rw-r--r--    1 root     root           469 Jun 26  2022 /app/appsettings.json
+```
+ 
+## show the config file in the volume mount:
+`kubectl exec deploy/todo-web -- sh -c 'ls -l /app/config/*.json'`
+```
+lrwxrwxrwx    1 root     root            18 Sep 21 17:31 /app/config/config.json -> ..data/config.json
+```
+ 
+## check it really is read-only:
+`kubectl exec deploy/todo-web -- sh -c 'echo ch04 >> /app/config/config.json'`
+```
+sh: can't create /app/config/config.json: Read-only file system
+command terminated with exit code 1
+```
+
+## check the current app logs:
+`kubectl logs -l app=todo-web`
+Errors...
+ 
+## deploy the updated ConfigMap:
+`kubectl apply -f todo-list/configMaps/todo-web-config-dev-with-logging.yaml`
+```
+configmap/todo-web-config-dev configured
+```
+ 
+## wait for the config change to make it to the Pod:
+`sleep 120`
+ 
+## check the new setting:
+`kubectl exec deploy/todo-web -- sh -c 'ls -l /app/config/*.json'`
+```
+lrwxrwxrwx    1 root     root            18 Sep 21 17:31 /app/config/config.json -> ..data/config.json
+lrwxrwxrwx    1 root     root            19 Sep 21 17:37 /app/config/logging.json -> ..data/logging.json
+```
+ 
+## load a few pages from the site at your Service IP address
+ 
+## check the logs again:
+`kubectl logs -l app=todo-web`
+More errors...
+
+## deploy the badly configured Pod:
+`kubectl apply -f todo-list/todo-web-dev-broken.yaml`
+```
+deployment.apps/todo-web configured
+```
+ 
+## browse back to the app and see how it looks
+
+## check the app logs:
+`kubectl logs -l app=todo-web`
+Errors...
+ 
+## and check the Pod status:
+`kubectl get pods -l app=todo-web`
+```
+NAME                        READY   STATUS             RESTARTS      AGE
+todo-web-76b6c46bf6-554nz   0/1     CrashLoopBackOff   1 (13s ago)   15s
+todo-web-b6d6f9ff5-rg5dz    1/1     Running            0             11m
+```
+
+## apply the change:
+`kubectl apply -f todo-list/todo-web-dev-no-logging.yaml`
+```
+deployment.apps/todo-web configured
+```
+ 
+## list the config folder contents:
+`kubectl exec deploy/todo-web -- sh -c 'ls /app/config'`
+```
+config.json
+```
+ 
+## now browse to a few pages on the app
+Broken except /config and /diagnostics.
+ 
+## check the logs:
+`kubectl logs -l app=todo-web`
+Errors...
+ 
+## and check the Pods:
+`kubectl get pods -l app=todo-web`
+```
+NAME                        READY   STATUS    RESTARTS   AGE
+todo-web-85c477b74c-fqw4c   1/1     Running   0          46s
+```
+
+
+# Section 4.4: Configuring sensitive data with Secrets
+
+
+## FOR WINDOWS USERS--this script adds a Base64 command to your session: 
+`. .\base64.ps1`
+ 
+## now create a secret from a plain text literal:
+`kubectl create secret generic sleep-secret-literal --from-literal=secret=shh...`
+```
+secret/sleep-secret-literal created
+```
+ 
+## show the friendly details of the Secret:
+`kubectl describe secret sleep-secret-literal`
+```
+Name:         sleep-secret-literal
+Namespace:    default
+Labels:       <none>
+Annotations:  <none>
+
+Type:  Opaque
+
+Data
+====
+secret:  6 bytes
+````
+ 
+## retrieve the encoded Secret value:
+`kubectl get secret sleep-secret-literal -o jsonpath='{.data.secret}'`
+```
+c2hoLi4u
+```
+ 
+## and decode the data:
+`kubectl get secret sleep-secret-literal -o jsonpath='{.data.secret}' | base64 -d`
+```
+shh...
+```
+
+## update the sleep Deployment:
+`kubectl apply -f sleep/sleep-with-secret.yaml`
+```
+deployment.apps/sleep configured
+```
+ 
+## check the environment variable in the Pod:
+`kubectl exec deploy/sleep -- printenv KIAMOL_SECRET`
+```
+shh...
+```
+
+## deploy the Secret:
+`kubectl apply -f todo-list/secrets/todo-db-secret-test.yaml`
+```
+secret/todo-db-secret-test created
+```
+ 
+## check the data is encoded:
+`kubectl get secret todo-db-secret-test -o jsonpath='{.data.POSTGRES_PASSWORD}'`
+```
+a2lhbW9sLTIqMio=
+```
+
+echo "a2lhbW9sLTIqMio=" | base64 -d
+```
+kiamol-2*2*
+```
+
+ 
+## see what annotations are stored:
+kubectl get secret todo-db-secret-test -o jsonpath='{.metadata.annotations}'
+```
+{"kubectl.kubernetes.io/last-applied-configuration":"{\"apiVersion\":\"v1\",\"kind\":\"Secret\",\"metadata\":{\"annotations\":{},\"name\":\"todo-db-secret-test\",\"namespace\":\"default\"},\"stringData\":{\"POSTGRES_PASSWORD\":\"kiamol-2*2*\"},\"type\":\"Opaque\"}\n"}
+```
+
+
+## deploy the YAML from listing 4.13
+`kubectl apply -f todo-list/todo-db-test.yaml`
+```
+deployment.apps/todo-db created
+```
+ 
+## check the database logs:
+`kubectl logs -l app=todo-db --tail 1`
+```
+Error from server (BadRequest): container "db" in pod "todo-db-8b974978c-txzpf" is waiting to start: ContainerCreating
+```
+...ran that again:
+```
+2023-09-21 17:50:37.123 UTC [1] LOG:  database system is ready to accept connections
+```
+ 
+## verify the password file permissions:
+`kubectl exec deploy/todo-db -- sh -c 'ls -l $(readlink -f /secrets/postgres_password)'`
+```
+-r--------    1 root     root            11 Sep 21 17:50 /secrets/..2023_09_21_17_50_27.776472020/postgres_password
+```
+
+## the ConfigMap configures the app to use Postgres:
+`kubectl apply -f todo-list/configMaps/todo-web-config-test.yaml`
+```
+configmap/todo-web-config-test created
+```
+
+## the Secret contains the credentials to connect to Postgres:
+`kubectl apply -f todo-list/secrets/todo-web-secret-test.yaml`
+```
+secret/todo-web-secret-test created
+```
+ 
+## the Deployment Pod spec uses the ConfigMap and Secret:
+`kubectl apply -f todo-list/todo-web-test.yaml`
+```
+deployment.apps/todo-web-test created
+```
+ 
+## check the database credentials are set in the app:
+`kubectl exec deploy/todo-web-test -- cat /app/secrets/secrets.json`
+```
+{
+  "ConnectionStrings": {
+    "ToDoDb": "Server=todo-db;Database=todo;User Id=postgres;Password=kiamol-2*2*;"
+  }
+}
+```
+Now `http://localhost:8080/` works, but can't see the list, nor add any items...
+ 
+## browse to the app and add some items
+
+# Section 4.5: Managing app configuration in Kubernetes
+
+
+## delete all the resources in all the files in all the directories:
+```bash
+kubectl delete -f sleep/
+kubectl delete -f todo-list/
+kubectl delete -f todo-list/configMaps/
+kubectl delete -f todo-list/secrets/
+```
+Each commmand deletes, but also has errors:
+
+```
+deployment.apps "sleep" deleted
+Error from server (NotFound): error when deleting "sleep/sleep-with-configMap-env.yaml": deployments.apps "sleep" not found
+Error from server (NotFound): error when deleting "sleep/sleep-with-env.yaml": deployments.apps "sleep" not found
+Error from server (NotFound): error when deleting "sleep/sleep-with-secret.yaml": deployments.apps "sleep" not found
+Error from server (NotFound): error when deleting "sleep/sleep.yaml": deployments.apps "sleep" not found
+...
+service "todo-db" deleted
+deployment.apps "todo-db" deleted
+deployment.apps "todo-web" deleted
+service "todo-web-test" deleted
+deployment.apps "todo-web-test" deleted
+service "todo-web" deleted
+Error from server (NotFound): error when deleting "todo-list/todo-web-dev-no-logging.yaml": deployments.apps "todo-web" not found
+Error from server (NotFound): error when deleting "todo-list/todo-web-dev.yaml": deployments.apps "todo-web" not found
+Error from server (NotFound): error when deleting "todo-list/todo-web.yaml": deployments.apps "todo-web" not found
+...
+configmap "todo-web-config-dev" deleted
+configmap "todo-web-config-test" deleted
+Error from server (NotFound): error when deleting "todo-list/configMaps/todo-web-config-dev.yaml": configmaps "todo-web-config-dev" not found
+...
+secret "todo-db-secret-test" deleted
+secret "todo-web-secret-test" deleted
+Error from server (NotFound): error when deleting "todo-list/secrets/todo-db-secret-test.yaml": secrets "todo-db-secret-test" not found
+```
+
+# Chapter 4 Lab
+
+```bash
+λ kubectl apply -f postgres/
+secret/ch04-lab-db-secret created
+service/ch04-lab-db created
+deployment.apps/ch04-lab-db created
+
+λ kubectl apply -f solution/
+configmap/adminer-config created
+secret/adminer-secret created
+service/adminer-web created
+deployment.apps/adminer-web created
+```
+
+
+
+
+
+
 
