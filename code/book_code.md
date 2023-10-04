@@ -1119,7 +1119,32 @@ Browsed there; also tried `http://localhost:8080/?dp=10` and `http://localhost:8
 ![](./ch05/Screenshot_2023-10-04_pi_100000.png)
  
 ## check the cache in the proxy
-kubectl exec deploy/pi-proxy -- ls -l /data/nginx/cache
+`kubectl exec deploy/pi-proxy -- ls -l /data/nginx/cache`
+```
+total 32
+drwx------    4 nginx    nginx         4096 Oct  4 14:20 0
+drwx------    3 nginx    nginx         4096 Oct  4 14:20 1
+drwx------    3 nginx    nginx         4096 Oct  4 14:21 2
+drwx------    3 nginx    nginx         4096 Oct  4 14:20 4
+drwx------    4 nginx    nginx         4096 Oct  4 14:20 5
+drwx------    4 nginx    nginx         4096 Oct  4 14:21 9
+drwx------    3 nginx    nginx         4096 Oct  4 14:21 a
+drwx------    3 nginx    nginx         4096 Oct  4 14:20 d
+```
+
+## delete the proxy Pod: 
+`kubectl delete pod -l app=pi-proxy`
+```
+pod "pi-proxy-866647b9c9-fbkhj" deleted
+```
+ 
+## check the cache directory of the replacement Pod:
+`kubectl exec deploy/pi-proxy -- ls -l /data/nginx/cache`
+```
+total 0
+```
+ 
+## refresh your browser at the Pi app URL
 
 
 
