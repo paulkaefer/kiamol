@@ -996,6 +996,131 @@ service/adminer-web created
 deployment.apps/adminer-web created
 ```
 
+# Chapter 5: Storing data with volumes, mounts, and claims
+
+## switch to this chapter’s exercise directory:
+`cd ch05`
+ 
+## deploy a sleep Pod:
+`kubectl apply -f sleep/sleep.yaml`
+ 
+## write a file inside the container:
+`kubectl exec deploy/sleep -- sh -c 'echo ch05 > /file.txt; ls /*.txt'`
+Also tried the one without `sh -c` from after the replacement, but interestingly...
+```bash
+Wed Oct 04 09:09:52
+~/GitHub/kiamol/ch05
+paulkaefer ~/GitHub/kiamol/ch05 λ kubectl exec deploy/sleep -- ls /*.txt
+ls: /*.txt: No such file or directory
+command terminated with exit code 1
+
+Wed Oct 04 09:09:55
+~/GitHub/kiamol/ch05
+paulkaefer ~/GitHub/kiamol/ch05 λ kubectl exec deploy/sleep -- ls *.txt
+ls: *.txt: No such file or directory
+command terminated with exit code 1
+
+Wed Oct 04 09:09:57
+~/GitHub/kiamol/ch05
+paulkaefer ~/GitHub/kiamol/ch05 λ kubectl exec deploy/sleep -- sh -c 'ls *.txt'
+file.txt
+
+Wed Oct 04 09:10:14
+~/GitHub/kiamol/ch05
+paulkaefer ~/GitHub/kiamol/ch05 λ kubectl exec deploy/sleep -- sh -c 'ls /*.txt' 
+/file.txt
+```
+ 
+## check the container ID:
+`kubectl get pod -l app=sleep -o jsonpath='{.items[0].status.containerStatuses[0].containerID}'`
+```
+docker://b3140d8ca3ed7aa96309707d8d2ff82bace05ca62f4169a470b1f3595cb61b02
+```
+
+## kill all processes in the container, causing a Pod restart:
+`kubectl exec -it deploy/sleep -- killall5`
+ 
+## check the replacment container ID:
+`kubectl get pod -l app=sleep -o jsonpath='{.items[0].status.containerStatuses[0].containerID}'`
+```
+docker://dffbc776cb327ba56a8861a4649cd9d4d7a273f0e046ce99078f74c0437c3aa7
+```
+ 
+## look for the file you wrote--it won’t be there:
+`kubectl exec deploy/sleep -- ls /*.txt`
+Nothing! Nor if I run:
+`kubectl exec deploy/sleep -- sh -c 'ls /*.txt'`
+
+
+## Now trying with emptyDir:
+
+## update the sleep Pod to use an EmptyDir volume:
+`kubectl apply -f sleep/sleep-with-emptyDir.yaml`
+```
+deployment.apps/sleep configured
+```
+ 
+## list the contents of the volume mount:
+`kubectl exec deploy/sleep -- ls /data`
+ 
+## create a file in the empty directory:
+`kubectl exec deploy/sleep -- sh -c 'echo ch05 > /data/file.txt; ls /data'`
+```
+file.txt
+```
+ 
+## check the container ID:
+`kubectl get pod -l app=sleep -o jsonpath='{.items[0].status.containerStatuses[0].containerID}'`
+```
+docker://412aa9574352e22adcedf6e353e55743d66bc2adf97ceb7b609c0e776eec441e
+```
+ 
+## kill the container processes:
+`kubectl exec deploy/sleep -- killall5`
+ 
+## check replacement container ID:
+`kubectl get pod -l app=sleep -o jsonpath='{.items[0].status.containerStatuses[0].containerID}'`
+```
+docker://14aa54acc387cf9cb64cf5125ee48009f6ccf2cdcc88704c45915e917c90bfaa
+```
+ 
+## read the file in the volume:
+`kubectl exec deploy/sleep -- cat /data/file.txt`
+```
+ch05
+```
+
+
+## deploy the Pi application:
+`kubectl apply -f pi/v1/ `
+```
+configmap/pi-proxy-configmap created
+service/pi-proxy created
+deployment.apps/pi-proxy created
+service/pi-web created
+deployment.apps/pi-web created
+```
+
+## wait for the web Pod to be ready:
+`kubectl wait --for=condition=Ready pod -l app=pi-web`
+```
+pod/pi-web-55b6cb574-6ldjm condition met
+```
+
+## find the app URL from your LoadBalancer:
+`kubectl get svc pi-proxy -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:8080/?dp=30000'`
+```
+http://localhost:8080/?dp=30000
+```
+Browsed there; also tried `http://localhost:8080/?dp=10` and `http://localhost:8080/?dp=100000` successfully!
+ 
+## browse to the URL, wait for the response then refresh the page
+ 
+## check the cache in the proxy
+kubectl exec deploy/pi-proxy -- ls -l /data/nginx/cache
+
+
+
 
 
 
