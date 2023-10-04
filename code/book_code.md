@@ -1112,11 +1112,11 @@ pod/pi-web-55b6cb574-6ldjm condition met
 ```
 http://localhost:8080/?dp=30000
 ```
+ 
+## browse to the URL, wait for the response then refresh the page
 Browsed there; also tried `http://localhost:8080/?dp=10` and `http://localhost:8080/?dp=100000` successfully!
 
 ![](./ch05/Screenshot_2023-10-04_pi_100000.png)
- 
-## browse to the URL, wait for the response then refresh the page
  
 ## check the cache in the proxy
 kubectl exec deploy/pi-proxy -- ls -l /data/nginx/cache
