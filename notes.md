@@ -24,6 +24,7 @@ Neat that we could build our own in-house cloud/cloud provisioning service this 
 > having your whole stack defined in Kubernetes manifests is pretty tempting, and some modern database servers are designed to run in a container platform; TiDB and CockroachDB are options worth looking at.
 
 ## Chapter 6
+- [ ] run `kubectl get all` at end/before I cleanup; see what's all there.
 - [ ] once I complete this chapter, revisit page 7
 
 ## Once complete:

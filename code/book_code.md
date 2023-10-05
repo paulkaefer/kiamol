@@ -1603,5 +1603,9 @@ When I ran that again, I got:
 Error from server (NotFound): storageclasses.storage.k8s.io "kiamol" not found
 ```
 
+# Chapter 5 Lab
+I am just running the steps from the README, including the sample solution.
+I had to modify the third command to be `kubectl logs -l app=todo-web-lab`.
 
+Most of `http://localhost:8082` doesn't work for me, except `http://localhost:8082/diagnostics`.
 
