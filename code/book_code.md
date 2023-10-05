@@ -1286,7 +1286,47 @@ deployment.apps/sleep configured
 `kubectl exec deploy/sleep -- sh -c 'ls /pod-logs | grep _pi-'`
  
 ## check the container logs:
-kubectl exec deploy/sleep -- sh -c 'ls /container-logs | grep nginx'
+`kubectl exec deploy/sleep -- sh -c 'ls /container-logs | grep nginx'`
+```
+pi-proxy-fbf5595-z72vn_default_nginx-3e3867270569fbffc25d50c839fa821c52a2db352314a2e442db42afaf65e7e0.log
+```
+
+
+# Section 5.3: Storing clusterwide data with persistent volumes and claims
+
+## apply a custom label to the first node in your cluster: 
+`kubectl label node $(kubectl get nodes -o jsonpath='{.items[0].metadata.name}') kiamol=ch05`
+```
+node/docker-desktop labeled
+```
+
+## check the nodes with a label selector:
+`kubectl get nodes -l kiamol=ch05`
+```
+NAME             STATUS   ROLES           AGE   VERSION
+docker-desktop   Ready    control-plane   20d   v1.27.2
+```
+
+## deploy a PV that uses a local volume on the labeled node:
+`kubectl apply -f todo-list/persistentVolume.yaml`
+```
+persistentvolume/pv01 created
+```
+
+## check the PV:
+`kubectl get pv`
+```
+NAME   CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS      CLAIM   STORAGECLASS   REASON   AGE
+pv01   50Mi       RWO            Retain           Available                                   7s
+```
+
+## Listing 5.6:
+Not sure I get this:
+```
+storageClassName: ""        # A blank class means a PV needs to exist.
+```
+Ah, from [here](https://kubernetes.io/docs/concepts/storage/storage-classes/), I see,
+> When a PVC does not specify a `storageClassName`, the default StorageClass is used.
 
 
 
