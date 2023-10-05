@@ -1147,6 +1147,40 @@ total 0
 ## refresh your browser at the Pi app URL
 
 
+## update the proxy Pod to use a HostPath volume:
+`kubectl apply -f pi/nginx-with-hostPath.yaml`
+ 
+## list the contents of the cache directory:
+`kubectl exec deploy/pi-proxy -- ls -l /data/nginx/cache`
+ 
+## browse to the app URL
+ 
+## delete the proxy Pod:
+`kubectl delete pod -l app=pi-proxy`
+```
+pod "pi-proxy-fbf5595-qbdcg" deleted
+```
+ 
+## check the cache directory in the replacement Pod:
+`kubectl exec deploy/pi-proxy -- ls -l /data/nginx/cache`
+```
+drwx------    3 nginx    nginx           60 Oct  4 14:50 1
+drwx------    3 nginx    nginx           60 Oct  4 14:52 8
+```
+ 
+## refresh your browser
+
+## run a Pod with a volume mount to the host:
+`kubectl apply -f sleep/sleep-with-hostPath.yaml`
+ 
+# check the log files inside the container:
+`kubectl exec deploy/sleep -- ls -l /var/log`
+ 
+# check the logs on the node using the volume:
+`kubectl exec deploy/sleep -- ls -l /node-root/var/log`
+ 
+# check the container user:
+`kubectl exec deploy/sleep -- whoami`
 
 
 
