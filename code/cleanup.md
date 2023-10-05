@@ -4,6 +4,7 @@ kubectl delete pods --all
 kubectl delete deploy --all
 kubectl delete svc --all
 kubectl delete pv --all
+kubectl delete pvc --all
 ```
 
 Then `kubectl get all` to check.

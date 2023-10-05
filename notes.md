@@ -1,12 +1,5 @@
 ## Setup/teardown
-### Setup:
-```bash
-eksctl create cluster --name=kiamol --nodes=1 --node-type=t3.large
-```
-
-### Teardown:
-* delete nodegroup(s) from cluster's compute tab.
-* delete EKS cluster.
+See `book_code.md` and `cleanup.md`, respectively.
 
 ## Chapter 2
 * p. 18, my output for the third command:
@@ -15,6 +8,17 @@ eksctl create cluster --name=kiamol --nodes=1 --node-type=t3.large
 containerd://9e3b015012a1fe9aacf96a4a88fbdc69a66aa39e9ce47935cdf1c52f9d6c2cf0
 ```
   * So, how do we get it to run via Docker? One day of use is showing me an AWS bill of USD 1.74; wouldn't Docker Desktop be free?
+
+## Chapter 5
+mentions write-ahead log (WAL)
+
+something really clicked at some point... essentially the part where we created a PVC but no PV, so it is `Pending`. I can see how this might be working behind the scenes when we go to provision a new EC2 instance, for example.
+Also how cool it is to decouple the storage from the node/app!
+Imagine retaining some volumes for archival purposes, or swapping PVs to change how the app works. A test PV with demo data & then a real/prod version. Or different PVs depending on the person/org? Maybe not swapping on-the-fly, but easy to deploy an app and "plug-in" the custom/specific PV required.
+
+Similarly:
+> Now you have a custom storage class that your apps can request in a PVC.
+Neat that we could build our own in-house cloud/cloud provisioning service this way...
 
 ## Chapter 6
 - [ ] once I complete this chapter, revisit page 7

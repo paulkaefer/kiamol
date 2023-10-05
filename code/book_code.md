@@ -1328,8 +1328,199 @@ storageClassName: ""        # A blank class means a PV needs to exist.
 Ah, from [here](https://kubernetes.io/docs/concepts/storage/storage-classes/), I see,
 > When a PVC does not specify a `storageClassName`, the default StorageClass is used.
 
+## create a PVC that will bind to the PV:
+`kubectl apply -f todo-list/postgres-persistentVolumeClaim.yaml`
+```
+persistentvolumeclaim/postgres-pvc created
+```
+ 
+## check PVCs:
+`kubectl get pvc`
+```
+NAME           STATUS   VOLUME   CAPACITY   ACCESS MODES   STORAGECLASS   AGE
+postgres-pvc   Bound    pv01     50Mi       RWO                           10s
+```
+
+## check PVs:
+`kubectl get pv`
+```
+NAME   CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS   CLAIM                  STORAGECLASS   REASON   AGE
+pv01   50Mi       RWO            Retain           Bound    default/postgres-pvc                           6m22s
+```
 
 
+## create a PVC that doesn’t match any available PVs:
+`kubectl apply -f todo-list/postgres-persistentVolumeClaim-too-big.yaml`
+```
+persistentvolumeclaim/postgres-pvc-toobig created
+```
 
+## check claims:
+`kubectl get pvc`
+```
+NAME                  STATUS    VOLUME   CAPACITY   ACCESS MODES   STORAGECLASS   AGE
+postgres-pvc          Bound     pv01     50Mi       RWO                           87s
+postgres-pvc-toobig   Pending                                                     15s
+```
+
+## run the sleep Pod, which has access to the node’s disk:
+`kubectl apply -f sleep/sleep-with-hostPath.yaml`
+```
+deployment.apps/sleep configured
+```
+
+## wait for the Pod to be ready:
+`kubectl wait --for=condition=Ready pod -l app=sleep`
+```
+pod/sleep-6f58497b9f-5j6jt condition met
+```
+
+## create the directory path on the node, which the PV expects:
+`kubectl exec deploy/sleep -- mkdir -p /node-root/volumes/pv01`
+
+
+## deploy the database:
+`kubectl apply -f todo-list/postgres/`
+```
+secret/todo-db-secret created
+service/todo-db created
+deployment.apps/todo-db created
+```
+ 
+## wait for Postgres to initialize:
+`sleep 30`
+ 
+## check the database logs: 
+`kubectl logs -l app=todo-db --tail 1`
+```
+2023-10-05 14:05:42.275 UTC [1] LOG:  database system is ready to accept connections
+```
+ 
+## check the data files in the volume:
+`kubectl exec deploy/sleep -- sh -c 'ls -l /node-root/volumes/pv01 | grep wal'`
+```
+drwx------    3 70       70              80 Oct  5 14:05 pg_wal
+```
+Additional investigation:
+```bash
+λ kubectl exec deploy/sleep -- sh -c 'ls -l /node-root/volumes/pv01/pg_wal'
+total 16384
+-rw-------    1 70       70        16777216 Oct  5 14:05 000000010000000000000001
+drwx------    2 70       70              40 Oct  5 14:05 archive_status
+
+λ kubectl exec deploy/sleep -- sh -c 'ls -al /node-root/volumes/pv01/pg_wal/archive_status'
+total 0
+drwx------    2 70       70              40 Oct  5 14:05 .
+drwx------    3 70       70              80 Oct  5 14:05 ..
+
+λ kubectl exec deploy/sleep -- sh -c 'cat /node-root/volumes/pv01/pg_wal/000000010000000000000001'
+```
+That printed gibberish, but I see segments like `pg_partitioned_table` and `pg_statistic_ext`.
+
+## deploy the web app components:
+`kubectl apply -f todo-list/web/`
+```
+configmap/todo-web-config created
+secret/todo-web-secret created
+service/todo-web created
+deployment.apps/todo-web created
+```
+ 
+## wait for the web Pod:
+`kubectl wait --for=condition=Ready pod -l app=todo-web`
+```
+pod/todo-web-679889ff7-j7lrj condition met
+```
+ 
+## get the app URL from the Service:
+`kubectl get svc todo-web -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:8081/new'`
+```
+http://localhost:8081/new
+```
+
+## browse to the app, and add a new item
+```
+This page isn’t workinglocalhost is currently unable to handle this request.
+HTTP ERROR 500
+```
+So I'll skip the next steps :-(
+## delete the database Pod:
+`kubectl delete pod -l app=todo-db`
+## check the contents of the volume on the node:
+`kubectl exec deploy/sleep -- ls -l /node-root/volumes/pv01/pg_wal`
+ 
+## check that your item is still in the to-do list
+
+# Section 5.4: Dynamic volume provisioning and storage classes
+
+## deploy the PVC from listing 5.8:
+`kubectl apply -f todo-list/postgres-persistentVolumeClaim-dynamic.yaml`
+```
+persistentvolumeclaim/postgres-pvc-dynamic created
+```
+
+## check claims and volumes:
+`kubectl get pvc`
+`kubectl get pv`
+```
+NAME                   STATUS    VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   AGE
+postgres-pvc           Bound     pv01                                       50Mi       RWO                           13m
+postgres-pvc-dynamic   Bound     pvc-da17382a-f0ee-43fc-9ded-126ec784daa2   100Mi      RWO            hostpath       8s
+postgres-pvc-toobig    Pending                                                                                       12m
+
+NAME                                       CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS   CLAIM                          STORAGECLASS   REASON   AGE
+pv01                                       50Mi       RWO            Retain           Bound    default/postgres-pvc                                   19m
+pvc-da17382a-f0ee-43fc-9ded-126ec784daa2   100Mi      RWO            Delete           Bound    default/postgres-pvc-dynamic   hostpath                16s
+```
+
+## delete the claim:
+kubectl delete pvc postgres-pvc-dynamic
+```
+persistentvolumeclaim "postgres-pvc-dynamic" deleted
+```
+
+## check volumes again:
+`kubectl get pv`
+```
+NAME   CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS   CLAIM                  STORAGECLASS   REASON   AGE
+pv01   50Mi       RWO            Retain           Bound    default/postgres-pvc                           20m
+```
+
+`kubectl get pvc`
+```
+NAME                  STATUS    VOLUME   CAPACITY   ACCESS MODES   STORAGECLASS   AGE
+postgres-pvc          Bound     pv01     50Mi       RWO                           15m
+postgres-pvc-toobig   Pending                                                     13m
+```
+
+
+## list the storage classes in the cluster:
+`kubectl get storageclass`
+```
+NAME                 PROVISIONER          RECLAIMPOLICY   VOLUMEBINDINGMODE   ALLOWVOLUMEEXPANSION   AGE
+hostpath (default)   docker.io/hostpath   Delete          Immediate           false                  20d
+```
+ 
+## clone the default on Windows:
+`Set-ExecutionPolicy Bypass -Scope Process -Force; ./cloneDefaultStorageClass.ps1`
+ 
+## OR on Mac/Linux:
+`chmod +x cloneDefaultStorageClass.sh && ./cloneDefaultStorageClass.sh`
+```
+configmap/clone-script created
+pod/clone-sc created
+pod/clone-sc condition met
+storageclass.storage.k8s.io/kiamol created
+configmap "clone-script" deleted
+pod "clone-sc" deleted
+```
+
+## list storage classes:
+`kubectl get sc`
+```
+NAME                 PROVISIONER          RECLAIMPOLICY   VOLUMEBINDINGMODE   ALLOWVOLUMEEXPANSION   AGE
+hostpath (default)   docker.io/hostpath   Delete          Immediate           false                  20d
+kiamol               docker.io/hostpath   Delete          Immediate           false                  49s
+```
 
 
