@@ -10,7 +10,7 @@ containerd://9e3b015012a1fe9aacf96a4a88fbdc69a66aa39e9ce47935cdf1c52f9d6c2cf0
   * So, how do we get it to run via Docker? One day of use is showing me an AWS bill of USD 1.74; wouldn't Docker Desktop be free?
 
 ## Chapter 5
-mentions write-ahead log (WAL)
+- [ ] mentions write-ahead log (WAL)... learn more!
 
 something really clicked at some point... essentially the part where we created a PVC but no PV, so it is `Pending`. I can see how this might be working behind the scenes when we go to provision a new EC2 instance, for example.
 Also how cool it is to decouple the storage from the node/app!
@@ -19,6 +19,9 @@ Imagine retaining some volumes for archival purposes, or swapping PVs to change 
 Similarly:
 > Now you have a custom storage class that your apps can request in a PVC.
 Neat that we could build our own in-house cloud/cloud provisioning service this way...
+
+- [ ] This seems worth looking into:
+> having your whole stack defined in Kubernetes manifests is pretty tempting, and some modern database servers are designed to run in a container platform; TiDB and CockroachDB are options worth looking at.
 
 ## Chapter 6
 - [ ] once I complete this chapter, revisit page 7

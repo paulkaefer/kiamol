@@ -1474,7 +1474,7 @@ pvc-da17382a-f0ee-43fc-9ded-126ec784daa2   100Mi      RWO            Delete     
 ```
 
 ## delete the claim:
-kubectl delete pvc postgres-pvc-dynamic
+`kubectl delete pvc postgres-pvc-dynamic`
 ```
 persistentvolumeclaim "postgres-pvc-dynamic" deleted
 ```
@@ -1522,5 +1522,86 @@ NAME                 PROVISIONER          RECLAIMPOLICY   VOLUMEBINDINGMODE   AL
 hostpath (default)   docker.io/hostpath   Delete          Immediate           false                  20d
 kiamol               docker.io/hostpath   Delete          Immediate           false                  49s
 ```
+
+## create a new PVC using the custom storage class:
+`kubectl apply -f storageClass/postgres-persistentVolumeClaim-storageClass.yaml`
+```
+persistentvolumeclaim/postgres-pvc-kiamol created
+```
+
+## update the database to use the new PVC:
+`kubectl apply -f storageClass/todo-db.yaml`
+```
+deployment.apps/todo-db configured
+```
+
+## check the storage:
+`kubectl get pvc`
+`kubectl get pv`
+```
+NAME                  STATUS    VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   AGE
+postgres-pvc          Bound     pv01                                       50Mi       RWO                           20m
+postgres-pvc-kiamol   Bound     pvc-3694c25d-f61d-411f-83d6-4cae06552867   100Mi      RWO            kiamol         20s
+postgres-pvc-toobig   Pending                                                                                       19m
+
+NAME                                       CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS   CLAIM                         STORAGECLASS   REASON   AGE
+pv01                                       50Mi       RWO            Retain           Bound    default/postgres-pvc                                  26m
+pvc-3694c25d-f61d-411f-83d6-4cae06552867   100Mi      RWO            Delete           Bound    default/postgres-pvc-kiamol   kiamol                  30s
+```
+ 
+## check the Pods:
+`kubectl get pods -l app=todo-db`
+```
+NAME                       READY   STATUS    RESTARTS   AGE
+todo-db-745877d464-6pxvr   1/1     Running   0          34s
+```
+ 
+## refresh the list in your to-do app
+Adding items is still not working, but I can still access `http://localhost:8081/new`. The list is (still) empty.
+
+# Section 5.5: Understanding storage choices in Kubernetes
+
+## delete deployments, PVCs, PVs, and Services:
+`kubectl delete -f pi/v1 -f sleep/ -f storageClass/ -f todo-list/web -f todo-list/postgres -f todo-list/`
+```
+configmap "pi-proxy-configmap" deleted
+service "pi-proxy" deleted
+deployment.apps "pi-proxy" deleted
+service "pi-web" deleted
+deployment.apps "pi-web" deleted
+deployment.apps "sleep" deleted
+persistentvolumeclaim "postgres-pvc-kiamol" deleted
+deployment.apps "todo-db" deleted
+configmap "todo-web-config" deleted
+secret "todo-web-secret" deleted
+service "todo-web" deleted
+deployment.apps "todo-web" deleted
+secret "todo-db-secret" deleted
+service "todo-db" deleted
+persistentvolume "pv01" deleted
+persistentvolume "pv01" deleted
+persistentvolumeclaim "postgres-pvc-toobig" deleted
+persistentvolumeclaim "postgres-pvc" deleted
+Error from server (NotFound): error when deleting "sleep/sleep-with-emptyDir.yaml": deployments.apps "sleep" not found
+Error from server (NotFound): error when deleting "sleep/sleep-with-hostPath-subPath.yaml": deployments.apps "sleep" not found
+Error from server (NotFound): error when deleting "sleep/sleep-with-hostPath.yaml": deployments.apps "sleep" not found
+Error from server (NotFound): error when deleting "sleep/sleep-with-projected.yaml": deployments.apps "sleep" not found
+Error from server (NotFound): error when deleting "sleep/sleep.yaml": deployments.apps "sleep" not found
+Error from server (NotFound): error when deleting "storageClass/clone-storageClass-script.yaml": configmaps "clone-script" not found
+Error from server (NotFound): error when deleting "storageClass/clone-storageClass-script.yaml": pods "clone-sc" not found
+Error from server (NotFound): error when deleting "todo-list/postgres/todo-db.yaml": deployments.apps "todo-db" not found
+Error from server (NotFound): error when deleting "todo-list/postgres-persistentVolumeClaim-dynamic.yaml": persistentvolumeclaims "postgres-pvc-dynamic" not found
+```
+ 
+## delete the custom storage class:
+`kubectl delete sc kiamol`
+```
+storageclass.storage.k8s.io "kiamol" deleted
+```
+When I ran that again, I got:
+```
+Error from server (NotFound): storageclasses.storage.k8s.io "kiamol" not found
+```
+
 
 
