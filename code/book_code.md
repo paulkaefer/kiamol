@@ -1618,7 +1618,7 @@ Figure 6.1: "Every software problem can be solved by adding another layer of abs
 ## switch to this chapter's exercises:
 `cd ch06`
 
-# deploy the ReplicaSet and Service:
+## deploy the ReplicaSet and Service:
 `kubectl apply -f whoami/`
 ```
 Unable to connect to the server: EOF
@@ -1631,19 +1631,63 @@ E1012 12:09:15.891282    8875 memcache.go:265] couldn't get current server API g
 ^C
 ```
 
-# check the resource:
-kubectl get replicaset whoami-web
+Reseting Kubernetes Cluster through Docker Desktop... That worked!
 
-# make an HTTP GET call to the Service:
-curl $(kubectl get svc whoami-web -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:8088')
+```
+service/whoami-web created
+replicaset.apps/whoami-web created
+```
 
-# delete all the Pods:
-kubectl delete pods -l app=whoami-web
+## check the resource:
+`kubectl get replicaset whoami-web`
+```
+NAME         DESIRED   CURRENT   READY   AGE
+whoami-web   1         1         1       19s
+```
 
-# repeat the HTTP call:
-curl $(kubectl get svc whoami-web -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:8088')
+## make an HTTP GET call to the Service:
+`curl $(kubectl get svc whoami-web -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:8088')`
+```
+"I'm whoami-web-pp7d7 running on Linux 6.4.16-linuxkit #1 SMP PREEMPT Sat Sep 23 13:36:48 UTC 2023"
+```
 
-# show the detail about the ReplicaSet:
-kubectl describe rs whoami-web
+## delete all the Pods:
+`kubectl delete pods -l app=whoami-web`
+```
+pod "whoami-web-pp7d7" deleted
+```
+
+## repeat the HTTP call:
+`curl $(kubectl get svc whoami-web -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:8088')`
+```
+"I'm whoami-web-tct2n running on Linux 6.4.16-linuxkit #1 SMP PREEMPT Sat Sep 23 13:36:48 UTC 2023"
+```
+
+## show the detail about the ReplicaSet:
+`kubectl describe rs whoami-web`
+```
+Name:         whoami-web
+Namespace:    default
+Selector:     app=whoami-web
+Labels:       kiamol=ch06
+Annotations:  <none>
+Replicas:     1 current / 1 desired
+Pods Status:  1 Running / 0 Waiting / 0 Succeeded / 0 Failed
+Pod Template:
+  Labels:  app=whoami-web
+  Containers:
+   web:
+    Image:        kiamol/ch02-whoami
+    Port:         80/TCP
+    Host Port:    0/TCP
+    Environment:  <none>
+    Mounts:       <none>
+  Volumes:        <none>
+Events:
+  Type    Reason            Age   From                   Message
+  ----    ------            ----  ----                   -------
+  Normal  SuccessfulCreate  58s   replicaset-controller  Created pod: whoami-web-pp7d7
+  Normal  SuccessfulCreate  19s   replicaset-controller  Created pod: whoami-web-tct2n
+```
 
 
