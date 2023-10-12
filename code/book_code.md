@@ -1691,3 +1691,242 @@ Events:
 ```
 
 
+## deploy the update:
+`kubectl apply -f whoami/update/whoami-replicas-3.yaml`
+```
+replicaset.apps/whoami-web configured
+```
+ 
+## check Pods:
+`kubectl get pods -l app=whoami-web`
+```
+NAME               READY   STATUS    RESTARTS   AGE
+whoami-web-jsnpt   1/1     Running   0          5s
+whoami-web-tct2n   1/1     Running   0          4m3s
+whoami-web-z928n   1/1     Running   0          5s
+```
+ 
+## delete all the Pods:
+`kubectl delete pods -l app=whoami-web`
+```
+pod "whoami-web-jsnpt" deleted
+pod "whoami-web-tct2n" deleted
+pod "whoami-web-z928n" deleted
+```
+
+## check again:
+`kubectl get pods -l app=whoami-web`
+```
+NAME               READY   STATUS    RESTARTS   AGE
+whoami-web-59586   1/1     Running   0          11s
+whoami-web-8qbbf   1/1     Running   0          11s
+whoami-web-d47qj   1/1     Running   0          11s
+```
+ 
+## repeat this HTTP call a few times:
+`curl $(kubectl get svc whoami-web -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:8088')`
+```
+Thu Oct 12 12:16:04
+~/GitHub/kiamol/ch06
+paulkaefer ~/GitHub/kiamol/ch06 λ curl $(kubectl get svc whoami-web -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:8088')
+"I'm whoami-web-8qbbf running on Linux 6.4.16-linuxkit #1 SMP PREEMPT Sat Sep 23 13:36:48 UTC 2023"
+Thu Oct 12 12:16:20
+~/GitHub/kiamol/ch06
+paulkaefer ~/GitHub/kiamol/ch06 λ curl $(kubectl get svc whoami-web -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:8088')
+"I'm whoami-web-59586 running on Linux 6.4.16-linuxkit #1 SMP PREEMPT Sat Sep 23 13:36:48 UTC 2023"
+Thu Oct 12 12:16:20
+~/GitHub/kiamol/ch06
+paulkaefer ~/GitHub/kiamol/ch06 λ curl $(kubectl get svc whoami-web -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:8088')
+"I'm whoami-web-59586 running on Linux 6.4.16-linuxkit #1 SMP PREEMPT Sat Sep 23 13:36:48 UTC 2023"
+Thu Oct 12 12:16:22
+~/GitHub/kiamol/ch06
+paulkaefer ~/GitHub/kiamol/ch06 λ curl $(kubectl get svc whoami-web -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:8088')
+"I'm whoami-web-8qbbf running on Linux 6.4.16-linuxkit #1 SMP PREEMPT Sat Sep 23 13:36:48 UTC 2023"
+```
+Ran a few more, and got `d47qj` then `8qbbf` and then those two repeated a couple times. I ran more, and saw the `59586` again after a bit.
+
+
+## run a sleep Pod:
+`kubectl apply -f sleep.yaml`
+```
+deployment.apps/sleep created
+```
+ 
+## check the details of the who-am-I Service:
+`kubectl get svc whoami-web`
+```
+NAME         TYPE           CLUSTER-IP      EXTERNAL-IP   PORT(S)          AGE
+whoami-web   LoadBalancer   10.110.36.180   localhost     8088:31562/TCP   8m30s
+```
+
+## run a DNS lookup for the Service in the sleep Pod:
+`kubectl exec deploy/sleep -- sh -c 'nslookup whoami-web | grep "^[^*]"'`
+```
+Server:   10.96.0.10
+Address:  10.96.0.10:53
+Name: whoami-web.default.svc.cluster.local
+Address: 10.110.36.180
+```
+ 
+## make some HTTP calls:
+`kubectl exec deploy/sleep -- sh -c 'for i in 1 2 3; do curl -w \\n -s http://whoami-web:8088; done;'`
+```
+"I'm whoami-web-8qbbf running on Linux 6.4.16-linuxkit #1 SMP PREEMPT Sat Sep 23 13:36:48 UTC 2023"
+"I'm whoami-web-59586 running on Linux 6.4.16-linuxkit #1 SMP PREEMPT Sat Sep 23 13:36:48 UTC 2023"
+"I'm whoami-web-59586 running on Linux 6.4.16-linuxkit #1 SMP PREEMPT Sat Sep 23 13:36:48 UTC 2023"
+```
+
+
+## deploy the Pi app:
+`kubectl apply -f pi/web/`
+```
+service/pi-web created
+deployment.apps/pi-web created
+```
+
+## check the ReplicaSet:
+`kubectl get rs -l app=pi-web`
+```
+NAME               DESIRED   CURRENT   READY   AGE
+pi-web-55b6cb574   2         2         2       8s
+```
+
+## scale up to more replicas:
+`kubectl apply -f pi/web/update/web-replicas-3.yaml`
+```
+deployment.apps/pi-web configured
+```
+Cool. I see the YAML file has `replicas: 3`.
+
+## check the RS:
+`kubectl get rs -l app=pi-web`
+```
+NAME               DESIRED   CURRENT   READY   AGE
+pi-web-55b6cb574   3         3         3       40s
+```
+
+## deploy a changed Pod spec with enhanced logging:
+`kubectl apply -f pi/web/update/web-logging-level.yaml`
+```
+deployment.apps/pi-web configured
+```
+
+## check ReplicaSets again:
+`kubectl get rs -l app=pi-web`
+```
+NAME                DESIRED   CURRENT   READY   AGE
+pi-web-55b6cb574    0         0         0       62s
+pi-web-658956d56f   3         3         3       12s
+```
+
+
+## we need to scale the Pi app fast:
+`kubectl scale --replicas=4 deploy/pi-web`
+```
+deployment.apps/pi-web scaled
+```
+
+## check which ReplicaSet makes the change:
+`kubectl get rs -l app=pi-web`
+```
+NAME                DESIRED   CURRENT   READY   AGE
+pi-web-55b6cb574    0         0         0       2m6s
+pi-web-658956d56f   4         4         4       76s
+```
+
+## now we can revert back to the original logging level:
+`kubectl apply -f pi/web/update/web-replicas-3.yaml`
+```
+deployment.apps/pi-web configured
+```
+
+## but that will undo the scale we set manually:
+`kubectl get rs -l app=pi-web`
+```
+NAME                DESIRED   CURRENT   READY   AGE
+pi-web-55b6cb574    3         3         3       2m24s
+pi-web-658956d56f   0         0         0       94s
+```
+
+## check the Pods:
+`kubectl get pods -l app=pi-web`
+```
+NAME                     READY   STATUS    RESTARTS   AGE
+pi-web-55b6cb574-4cqqc   1/1     Running   0          18s
+pi-web-55b6cb574-kzngl   1/1     Running   0          16s
+pi-web-55b6cb574-xx7bh   1/1     Running   0          14s
+```
+
+Probably best to not scale manually.
+
+## list ReplicaSets with labels:
+`kubectl get rs -l app=pi-web  --show-labels`
+```
+NAME                DESIRED   CURRENT   READY   AGE     LABELS
+pi-web-55b6cb574    3         3         3       3m44s   app=pi-web,pod-template-hash=55b6cb574
+pi-web-658956d56f   0         0         0       2m54s   app=pi-web,pod-template-hash=658956d56f
+```
+
+## list Pods with labels:
+`kubectl get po -l app=pi-web  --show-labels`
+```
+NAME                     READY   STATUS    RESTARTS   AGE   LABELS
+pi-web-55b6cb574-4cqqc   1/1     Running   0          98s   app=pi-web,pod-template-hash=55b6cb574
+pi-web-55b6cb574-kzngl   1/1     Running   0          96s   app=pi-web,pod-template-hash=55b6cb574
+pi-web-55b6cb574-xx7bh   1/1     Running   0          94s   app=pi-web,pod-template-hash=55b6cb574
+```
+
+## deploy the proxy resources:
+`kubectl apply -f pi/proxy/`
+```
+configmap/pi-proxy-configmap created
+service/pi-proxy created
+deployment.apps/pi-proxy created
+```
+
+## get the URL to the proxied app:
+`kubectl get svc whoami-web -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:8080/?dp=10000'`
+```
+http://localhost:8080/?dp=10000
+```
+
+## browse to the app, and try a few different values for 'dp' in the URL
+```
+To: 10,000 d.p.
+in: 130 ms.
+from: pi-web-55b6cb574-xx7bh
+
+To: 20,000 d.p.
+in: 433 ms.
+from: pi-web-55b6cb574-kzngl
+
+To: 150,000 d.p.
+in: 15,226 ms.
+from: pi-web-55b6cb574-4cqqc
+-- ends in 04283622782
+
+Tried with 250000; got
+504 Gateway Time-out
+nginx/1.17.10
+
+To: 5,000 d.p.
+in: 29 ms.
+from: pi-web-55b6cb574-xx7bh
+```
+
+See `ch06/Screenshot 2023-10-12 at 12.53.35 PM.png` for my equivalent of Figure 6.10.
+Then `ch06/Screenshot 2023-10-12 at 12.55.22 PM.png`, which was after I refreshed.
+
+I suspect the caching could be improved... `http://localhost:8080/?dp=240000` took 16,254 ms.
+Ah, perhaps the "It would be nice to fix this by using shared storage, so every proxy Pod had access to the same cache." partially explains this.
+
+I stopped at `TRY IT NOW Deploy an update to the proxy spec`.
+
+
+
+
+
+
+
+
+
