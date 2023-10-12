@@ -1609,3 +1609,41 @@ I had to modify the third command to be `kubectl logs -l app=todo-web-lab`.
 
 Most of `http://localhost:8082` doesn't work for me, except `http://localhost:8082/diagnostics`.
 
+
+# Chapter 6: Scaling applications across multiple Pods with controllers
+
+Figure 6.1: "Every software problem can be solved by adding another layer of abstraction."
+
+
+## switch to this chapter's exercises:
+`cd ch06`
+
+# deploy the ReplicaSet and Service:
+`kubectl apply -f whoami/`
+```
+Unable to connect to the server: EOF
+```
+
+`kubectl get all`
+```
+E1012 12:09:05.835511    8875 memcache.go:265] couldn't get current server API group list: Get "https://kubernetes.docker.internal:6443/api?timeout=32s": EOF
+E1012 12:09:15.891282    8875 memcache.go:265] couldn't get current server API group list: Get "https://kubernetes.docker.internal:6443/api?timeout=32s": EOF
+^C
+```
+
+# check the resource:
+kubectl get replicaset whoami-web
+
+# make an HTTP GET call to the Service:
+curl $(kubectl get svc whoami-web -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:8088')
+
+# delete all the Pods:
+kubectl delete pods -l app=whoami-web
+
+# repeat the HTTP call:
+curl $(kubectl get svc whoami-web -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:8088')
+
+# show the detail about the ReplicaSet:
+kubectl describe rs whoami-web
+
+
