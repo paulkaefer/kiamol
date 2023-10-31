@@ -2150,6 +2150,144 @@ paulkaefer ~/GitHub/kiamol/ch06 λ kubectl delete ds pi-proxy --cascade=orphan
 daemonset.apps "pi-proxy" deleted
 ```
 
+# Section 6.4: Understanding object ownership in Kubernetes
+```
+# check which objects own the Pods:
+kubectl get po -o custom-columns=NAME:'{.metadata.name}',OWNER:'{.metadata.ownerReferences[0].name}',OWNER_KIND:'{.metadata.ownerReferences[0].kind}'
+ 
+# check which objects own the ReplicaSets:
+kubectl get rs -o custom-columns=NAME:'{.metadata.name}',OWNER:'{.metadata.ownerReferences[0].name}',OWNER_KIND:'{.metadata.ownerReferences[0].kind}'
+```
+Output:
+```
+NAME                     OWNER              OWNER_KIND
+pi-proxy-7wcc6           <none>             <none>
+pi-web-55b6cb574-4cqqc   pi-web-55b6cb574   ReplicaSet
+pi-web-55b6cb574-kzngl   pi-web-55b6cb574   ReplicaSet
+pi-web-55b6cb574-xx7bh   pi-web-55b6cb574   ReplicaSet
+sleep-8648c6f777-k7mp7   sleep-8648c6f777   ReplicaSet
+whoami-web-59586         whoami-web         ReplicaSet
+whoami-web-8qbbf         whoami-web         ReplicaSet
+whoami-web-d47qj         whoami-web         ReplicaSet
+
+NAME                OWNER    OWNER_KIND
+pi-web-55b6cb574    pi-web   Deployment
+pi-web-658956d56f   pi-web   Deployment
+sleep-8648c6f777    sleep    Deployment
+whoami-web          <none>   <none>
+```
+
+# 6.4 Understanding object ownership in Kubernetes
+```
+# remove all the controllers and Services:
+kubectl delete all -l kiamol=ch06
+```
+
+```
+service "pi-proxy" deleted
+service "pi-web" deleted
+service "whoami-web" deleted
+deployment.apps "pi-web" deleted
+deployment.apps "sleep" deleted
+replicaset.apps "whoami-web" deleted
+```
+
+
+# Ch06 lab
+
+Run the app:
+
+```
+kubectl apply -f lab/numbers/
+```
+
+```
+service/numbers-api created
+pod/numbers-api created
+service/numbers-web created
+replicationcontroller/numbers-web created
+```
+
+Get the URL to browse to:
+
+```
+kubectl get svc numbers-web -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:8086'
+```
+http://localhost:8086
+
+> Browse and try to get a random number, the app fails.
+```
+This page isn’t workingIf the problem continues, contact the site owner.
+HTTP ERROR 400
+```
+
+## Sample Solution
+
+Add the RNG label to a node:
+
+```
+kubectl label node $(kubectl get nodes -o jsonpath='{.items[0].metadata.name}') rng=hw
+```
+
+```
+node/docker-desktop labeled
+```
+
+Deploy the new resources - a [Deployment](solution/web-deployment.yaml) for the web app and a [DaemonSet](solution/api-daemonset.yaml) for the API:
+
+```
+kubectl apply -f lab/solution/
+```
+
+```
+daemonset.apps/numbers-api created
+deployment.apps/numbers-web created
+```
+
+> Refresh the browser and confirm you can get a random number.
+```
+KIAMOL Random Number Generator
+Here it is: 33
+
+(Using API at: http://numbers-api/sixeyed/kiamol/master/ch03/numbers/rng)
+```
+Tried again... 36, 27.
+
+Delete the old resources by their labels:
+
+```
+kubectl get all -l kiamol=ch06-lab
+
+kubectl delete all -l kiamol=ch06-lab
+```
+Output:
+```
+NAME              READY   STATUS    RESTARTS   AGE
+pod/numbers-api   1/1     Running   0          89s
+
+NAME                                DESIRED   CURRENT   READY   AGE
+replicationcontroller/numbers-web   2         2         2       89s
+
+NAME                  TYPE           CLUSTER-IP      EXTERNAL-IP   PORT(S)          AGE
+service/numbers-api   ClusterIP      10.96.96.74     <none>        80/TCP           89s
+service/numbers-web   LoadBalancer   10.111.72.120   localhost     8086:31843/TCP   89s
+
+NAME                         DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR   AGE
+daemonset.apps/numbers-api   1         1         1       1            1           rng=hw          51s
+
+NAME                          READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/numbers-web   2/2     2            2           51s
+
+
+pod "numbers-api" deleted
+replicationcontroller "numbers-web" deleted
+service "numbers-api" deleted
+service "numbers-web" deleted
+daemonset.apps "numbers-api" deleted
+deployment.apps "numbers-web" deleted
+```
+
+
 
 
 
