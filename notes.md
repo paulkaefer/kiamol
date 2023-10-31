@@ -27,6 +27,10 @@ Neat that we could build our own in-house cloud/cloud provisioning service this 
 - [ ] run `kubectl get all` at end/before I cleanup; see what's all there.
 - [ ] once I complete this chapter, revisit page 7
 
+Section 6.3: "The DaemonSet takes its name from the Linux daemon, which is usually a system process that runs constantly as a single instance in the background (the equivalent of a Windows Service in the Windows world)."
+
+Still not fully understanding, but https://en.wikipedia.org/wiki/Kubernetes#DaemonSets helps.
+
 ## Once complete:
 - [ ] consider a certification. See page 8 for some info
 - [ ] Try *Learn Docker in a Month of Lunches* (per p. xiii)

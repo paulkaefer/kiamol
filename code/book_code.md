@@ -1922,7 +1922,233 @@ Ah, perhaps the "It would be nice to fix this by using shared storage, so every 
 
 I stopped at `TRY IT NOW Deploy an update to the proxy spec`.
 
+## Resuming 2023-10-31:
+```bash
+λ kubectl get all
+NAME                            READY   STATUS    RESTARTS        AGE
+pod/pi-proxy-866647b9c9-8lsv4   1/1     Running   6 (2m44s ago)   18d
+pod/pi-proxy-866647b9c9-skxj6   1/1     Running   6 (2m44s ago)   18d
+pod/pi-web-55b6cb574-4cqqc      1/1     Running   2 (3m16s ago)   18d
+pod/pi-web-55b6cb574-kzngl      1/1     Running   2 (3m16s ago)   18d
+pod/pi-web-55b6cb574-xx7bh      1/1     Running   2 (26h ago)     18d
+pod/sleep-8648c6f777-k7mp7      1/1     Running   2 (26h ago)     18d
+pod/whoami-web-59586            1/1     Running   2 (26h ago)     18d
+pod/whoami-web-8qbbf            1/1     Running   2 (26h ago)     18d
+pod/whoami-web-d47qj            1/1     Running   2 (26h ago)     18d
 
+NAME                 TYPE           CLUSTER-IP      EXTERNAL-IP   PORT(S)          AGE
+service/kubernetes   ClusterIP      10.96.0.1       <none>        443/TCP          18d
+service/pi-proxy     LoadBalancer   10.100.94.73    localhost     8080:30747/TCP   18d
+service/pi-web       ClusterIP      10.99.175.99    <none>        80/TCP           18d
+service/whoami-web   LoadBalancer   10.110.36.180   localhost     8088:31562/TCP   18d
+
+NAME                       READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/pi-proxy   2/2     2            2           18d
+deployment.apps/pi-web     3/3     3            3           18d
+deployment.apps/sleep      1/1     1            1           18d
+
+NAME                                  DESIRED   CURRENT   READY   AGE
+replicaset.apps/pi-proxy-866647b9c9   2         2         2       18d
+replicaset.apps/pi-web-55b6cb574      3         3         3       18d
+replicaset.apps/pi-web-658956d56f     0         0         0       18d
+replicaset.apps/sleep-8648c6f777      1         1         1       18d
+replicaset.apps/whoami-web            3         3         3       18d
+```
+
+## deploy the updated spec:
+`kubectl apply -f pi/proxy/update/nginx-hostPath.yaml`
+```
+deployment.apps/pi-proxy configured
+```
+ 
+## check the Pods--the new spec adds a third replica:
+`kubectl get po -l app=pi-proxy`
+```
+NAME                        READY   STATUS    RESTARTS   AGE
+pi-proxy-684954445c-95kjt   1/1     Running   0          7s
+pi-proxy-684954445c-pgsgr   1/1     Running   0          6s
+pi-proxy-684954445c-pmkld   1/1     Running   0          8s
+```
+ 
+## browse back to the Pi app, and refresh it a few times
+http://localhost:8080/
+ 
+## check the proxy logs:
+`kubectl logs -l app=pi-proxy --tail 1`
+```
+192.168.65.3 - - [31/Oct/2023:15:15:21 +0000] "GET /?dp=100 HTTP/1.1" 200 1102 "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36"
+192.168.65.3 - - [31/Oct/2023:15:15:21 +0000] "GET /?dp=100 HTTP/1.1" 200 1102 "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36"
+192.168.65.3 - - [31/Oct/2023:15:15:03 +0000] "GET / HTTP/1.1" 200 1019 "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36"
+```
+
+# Section 6.3: Scaling for high availability with DaemonSets
+
+## deploy the DaemonSet:
+`kubectl apply -f pi/proxy/daemonset/nginx-ds.yaml`
+```
+daemonset.apps/pi-proxy created
+```
+ 
+## check the endpoints used in the proxy service:
+`kubectl get endpoints pi-proxy`
+```
+NAME       ENDPOINTS                                               AGE
+pi-proxy   10.1.0.147:80,10.1.0.149:80,10.1.0.150:80 + 1 more...   18d
+```
+
+## delete the Deployment:
+`kubectl delete deploy pi-proxy`
+```
+deployment.apps "pi-proxy" deleted
+```
+
+## check the DaemonSet:
+`kubectl get daemonset pi-proxy`
+```
+NAME       DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR   AGE
+pi-proxy   1         1         1       1            1           <none>          45s
+```
+
+## check the Pods:
+`kubectl get po -l app=pi-proxy`
+```
+NAME             READY   STATUS    RESTARTS   AGE
+pi-proxy-8lkwh   1/1     Running   0          58s
+```
+Maybe I wasn't fast enough to see the Terminating... like in Figure 6.13?
+
+## refresh your latest Pi calculation on the browser
+
+## check the status of the DaemonSet:
+`kubectl get ds pi-proxy`
+```
+NAME       DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR   AGE
+pi-proxy   1         1         1       1            1           <none>          3m5s
+```
+ 
+## delete its Pod:
+`kubectl delete po -l app=pi-proxy`
+Ran twice by accident:
+```
+pod "pi-proxy-8lkwh" deleted
+pod "pi-proxy-xfp68" deleted
+```
+
+I did see the following if I reload just after I run the delete command:
+```
+This page isn’t working
+localhost didn’t send any data.
+ERR_EMPTY_RESPONSE
+```
+ 
+## check the Pods:
+`kubectl get po -l app=pi-proxy`
+```
+NAME             READY   STATUS    RESTARTS   AGE
+pi-proxy-skk9w   1/1     Running   0          29s
+```
+
+Looked @ browser:
+```
+Pi.Web
+Source
+Pi
+To: 10,000 d.p.
+in: 145 ms.
+from: pi-web-55b6cb574-xx7bh
+3.141592653589793238462643383279502884197169399375105820974944592307816406286208998628034825342117067982148086513282306647093844609550582231725359408128481117450284102701938521105559644622948954930381964428810975665933446128475648233786783165271201909145648566923460348610454326648213393607260249141273724587006606315588174881520920962829254091715364367
+```
+
+## update the DaemonSet spec:
+`kubectl apply -f pi/proxy/daemonset/nginx-ds-nodeSelector.yaml`
+```
+daemonset.apps/pi-proxy configured
+```
+
+## check the DS:
+`kubectl get ds pi-proxy`
+```
+NAME       DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR   AGE
+pi-proxy   0         0         0       0            0           kiamol=ch06     33m
+```
+
+## check the Pods:
+`kubectl get po -l app=pi-proxy`
+```
+No resources found in default namespace.
+```
+ 
+## now label a node in your cluster so it matches the selector:
+`kubectl label node $(kubectl get nodes -o jsonpath='{.items[0].metadata.name}') kiamol=ch06 --overwrite`
+```
+node/docker-desktop labeled
+```
+ 
+## check the Pods again:
+`kubectl get ds pi-proxy`
+```
+NAME       DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR   AGE
+pi-proxy   1         1         1       1            1           kiamol=ch06     35m
+```
+
+## delete the DaemonSet, but leave the Pod alone: 
+`kubectl delete ds pi-proxy --cascade=false`
+```
+warning: --cascade=false is deprecated (boolean value) and can be replaced with --cascade=orphan.
+```
+`kubectl delete ds pi-proxy --cascade=orphan`
+ 
+## check the Pod:
+`kubectl get po -l app=pi-proxy`
+```
+NAME             READY   STATUS    RESTARTS   AGE
+pi-proxy-sklbm   1/1     Running   0          2m34s
+```
+ 
+## recreate the DS:
+`kubectl apply -f pi/proxy/daemonset/nginx-ds-nodeSelector.yaml`
+```
+daemonset.apps/pi-proxy created
+```
+ 
+## check the DS and Pod:
+```bash
+kubectl get ds pi-proxy
+ 
+kubectl get po -l app=pi-proxy
+```
+Results:
+```
+NAME       DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR   AGE
+pi-proxy   1         1         1       1            1           kiamol=ch06     0s
+
+NAME             READY   STATUS    RESTARTS   AGE
+pi-proxy-sklbm   1/1     Running   0          2m34s
+```
+ 
+## delete the DS again, without the cascade option:
+`kubectl delete ds pi-proxy`
+```
+daemonset.apps "pi-proxy" deleted
+```
+ 
+## check the Pods:
+`kubectl get po -l app=pi-proxy`
+```
+NAME             READY   STATUS        RESTARTS   AGE
+pi-proxy-sklbm   1/1     Terminating   0          2m34s
+```
+
+I first ran the above (starting with `delete the DaemonSet`...) all at once due to copy/paste issue, so I tried the following to success:
+```
+paulkaefer ~/GitHub/kiamol/ch06 λ kubectl apply -f pi/proxy/daemonset/nginx-ds-nodeSelector.yaml
+daemonset.apps/pi-proxy created
+
+Tue Oct 31 10:59:54
+~/GitHub/kiamol/ch06
+paulkaefer ~/GitHub/kiamol/ch06 λ kubectl delete ds pi-proxy --cascade=orphan
+daemonset.apps "pi-proxy" deleted
+```
 
 
 
