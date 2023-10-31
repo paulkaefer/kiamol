@@ -24,7 +24,8 @@ Neat that we could build our own in-house cloud/cloud provisioning service this 
 > having your whole stack defined in Kubernetes manifests is pretty tempting, and some modern database servers are designed to run in a container platform; TiDB and CockroachDB are options worth looking at.
 
 ## Chapter 6
-- [ ] run `kubectl get all` at end/before I cleanup; see what's all there.
+- [X] run `kubectl get all` at end/before I cleanup; see what's all there.
+      I did `kubectl get all -l kiamol=ch06-lab` as part of the lab, at least. See also results within the chapter.
 - [ ] once I complete this chapter, revisit page 7
 
 Section 6.3: "The DaemonSet takes its name from the Linux daemon, which is usually a system process that runs constantly as a single instance in the background (the equivalent of a Windows Service in the Windows world)."
