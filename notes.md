@@ -26,11 +26,15 @@ Neat that we could build our own in-house cloud/cloud provisioning service this 
 ## Chapter 6
 - [X] run `kubectl get all` at end/before I cleanup; see what's all there.
       I did `kubectl get all -l kiamol=ch06-lab` as part of the lab, at least. See also results within the chapter.
-- [ ] once I complete this chapter, revisit page 7
+- [X] once I complete this chapter, revisit page 7
+![](./attachments/page7.png)
 
 Section 6.3: "The DaemonSet takes its name from the Linux daemon, which is usually a system process that runs constantly as a single instance in the background (the equivalent of a Windows Service in the Windows world)."
 
 Still not fully understanding, but https://en.wikipedia.org/wiki/Kubernetes#DaemonSets helps. See also [image](https://learning.oreilly.com/api/v2/epubs/urn:orm:book:9781617297984/files/OEBPS/Images/6-18.jpg).
+
+## Chapter 7
+* "The Pod is a virtual environment that creates a shared networking and filesystem space for one or more containers."
 
 ## Once complete:
 - [ ] consider a certification. See page 8 for some info

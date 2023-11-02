@@ -2288,9 +2288,9 @@ deployment.apps "numbers-web" deleted
 ```
 
 
+# Chapter 7: Extending applications with multicontainer Pods
 
-
-
+## Section 7.1: How containers communicate in a Pod
 
 
 
