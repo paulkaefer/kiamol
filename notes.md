@@ -26,7 +26,7 @@ Neat that we could build our own in-house cloud/cloud provisioning service this 
 ## Chapter 6
 - [X] run `kubectl get all` at end/before I cleanup; see what's all there.
       I did `kubectl get all -l kiamol=ch06-lab` as part of the lab, at least. See also results within the chapter.
-- [X] once I complete this chapter, revisit page 7
+- [X] ~~once I complete this chapter, revisit page 7;~~ relevant segment below:
 ![](./attachments/page7.png)
 
 Section 6.3: "The DaemonSet takes its name from the Linux daemon, which is usually a system process that runs constantly as a single instance in the background (the equivalent of a Windows Service in the Windows world)."
