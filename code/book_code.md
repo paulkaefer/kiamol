@@ -2292,5 +2292,34 @@ deployment.apps "numbers-web" deleted
 
 ## Section 7.1: How containers communicate in a Pod
 
+## switch to the chapter folder:
+`cd ch07`
+
+## deploy the Pod spec:
+`kubectl apply -f sleep/sleep-with-file-reader.yaml`
+```
+deployment.apps/sleep created
+```
+
+## get the detailed Pod information:
+`kubectl get pod -l app=sleep -o wide`
+```
+NAME                     READY   STATUS    RESTARTS   AGE   IP           NODE             NOMINATED NODE   READINESS GATES
+sleep-79d7fffc9b-qtvvc   2/2     Running   0          8s    10.1.0.166   docker-desktop   <none>           <none>
+```
+
+## show the container names:
+`kubectl get pod -l app=sleep -o jsonpath='{.items[0].status.containerStatuses[*].name}'`
+```
+file-reader sleep
+```
+
+## check the Pod logs--this will fail:
+`kubectl logs -l app=sleep`
+```
+Defaulted container "sleep" out of: sleep, file-reader
+```
+Not the same as the book's output... maybe a later version changed things?
+
 
 

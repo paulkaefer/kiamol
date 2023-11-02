@@ -35,8 +35,10 @@ Still not fully understanding, but https://en.wikipedia.org/wiki/Kubernetes#Daem
 
 ## Chapter 7
 * "The Pod is a virtual environment that creates a shared networking and filesystem space for one or more containers."
+* "...you can’t have some Linux and some Windows containers in the same Pod (yet)..." --> I wonder if you can use `wsl` in a Windows container, though.
 
 ## Once complete:
 - [ ] consider a certification. See page 8 for some info
 - [ ] Try *Learn Docker in a Month of Lunches* (per p. xiii)
+  - [ ] explore some of the docker images from this book in more detail, like [this one](https://hub.docker.com/r/kiamol/ch03-sleep)
 
