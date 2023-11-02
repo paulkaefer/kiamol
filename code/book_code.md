@@ -2322,4 +2322,575 @@ Defaulted container "sleep" out of: sleep, file-reader
 Not the same as the book's output... maybe a later version changed things?
 
 
+## write a file to the shared volume using one container:
+`kubectl exec deploy/sleep -c sleep -- sh -c 'echo ${HOSTNAME} > /data-rw/hostname.txt'`
+
+## read the file using the same container:
+`kubectl exec deploy/sleep -c sleep -- cat /data-rw/hostname.txt`
+```
+sleep-79d7fffc9b-qtvvc
+```
+
+## read the file using the other container:
+`kubectl exec deploy/sleep -c file-reader -- cat /data-ro/hostname.txt`
+```
+sleep-79d7fffc9b-qtvvc
+```
+
+## try to add to the file to the read-only container--this will fail:
+`kubectl exec deploy/sleep -c file-reader -- sh -c 'echo more >> /data-ro/hostname.txt'`
+```
+sh: can't create /data-ro/hostname.txt: Read-only file system
+command terminated with exit code 1
+```
+
+
+## deploy the update:
+`kubectl apply -f sleep/sleep-with-server.yaml`
+```
+deployment.apps/sleep configured
+```
+
+## check the Pod status:
+`kubectl get pods -l app=sleep`
+```
+NAME                     READY   STATUS    RESTARTS   AGE
+sleep-58f748595f-qvcpz   2/2     Running   0          11s
+```
+
+## list the container names in the new Pod:
+`kubectl get pod -l app=sleep -o jsonpath='{.items[0].status.containerStatuses[*].name}'`
+```
+server sleep
+```
+
+## make a network call between the containers:
+`kubectl exec deploy/sleep -c sleep -- wget -q -O - localhost:8080`
+```
+kiamol
+```
+Out of curiosity, I tried `kubectl exec deploy/sleep -c sleep -- wget -q -O - paulkaefer.com/ip/index.php` & it returned the same IP as my local machine.
+ 
+## check the server container logs:
+`kubectl logs -l app=sleep -c server`
+```
+GET / HTTP/1.1
+Host: localhost:8080
+User-Agent: Wget
+Connection: close
+```
+
+## create a Service targeting the server container port:
+`kubectl expose -f sleep/sleep-with-server.yaml --type LoadBalancer --port 8020 --target-port 8080`
+```
+service/sleep exposed
+```
+
+## get the URL for your service:
+`kubectl get svc sleep -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:8020'`
+```
+http://localhost:8020
+```
+
+## open the URL in your browser
+Just says `kiamol`.
+
+## check the server container logs:
+`kubectl logs -l app=sleep -c server`
+```
+sec-ch-ua-platform: "macOS"
+Accept: image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8
+Sec-Fetch-Site: same-origin
+Sec-Fetch-Mode: no-cors
+Sec-Fetch-Dest: image
+Referer: http://localhost:8020/
+Accept-Encoding: gzip, deflate, br
+Accept-Language: en-US,en;q=0.9
+Cookie: .AspNetCore.Antiforgery.9TtSrW0hzOs=CfDJ8HUQ90OKa3NOhBcatrOFhtWBiWNdJyC3aW-tWuALIJWtpQoc1SjuL_e6qT3MfFeGa0N3vysf-2IV9P9vtb3Yn_udCOnVtWgMYQwD2tv8oWS8JXooyphloxoxLBJCZxtApyyC_GXfk-Vggu7S_kYsls8
+```
+
+## apply the updated spec with the init container:
+`kubectl apply -f sleep/sleep-with-html-server.yaml`
+```
+deployment.apps/sleep configured
+```
+
+## check the Pod containers:
+`kubectl get pod -l app=sleep -o jsonpath='{.items[0].status.containerStatuses[*].name}'`
+```
+server sleep
+```
+
+## check the init containers:
+`kubectl get pod -l app=sleep -o jsonpath='{.items[0].status.initContainerStatuses[*].name}'`
+```
+init-html
+```
+
+## check logs from the init container--there are none:
+`kubectl logs -l app=sleep -c init-html`
+No output.
+
+## check that the file is available in the sidecar:
+`kubectl exec deploy/sleep -c server -- ls -l /data-ro`
+```
+total 4
+-rw-r--r--    1 root     root            62 Nov  2 15:27 index.html
+```
+I then ran:
+```html
+λ kubectl exec deploy/sleep -c server -- cat /data-ro/index.html
+<!DOCTYPE html><html><body><h1>KIAMOL Ch07</h1></body></html>
+```
+...and http://localhost:8020/ shows **KIAMOL Ch07**.
+
+
+## run the app, which uses a single config file:
+`kubectl apply -f timecheck/timecheck.yaml`
+```
+deployment.apps/timecheck created
+```
+
+## check the container logs--there won’t be any:
+`kubectl logs -l app=timecheck`
+Nothing.
+
+## check the log file inside the container:
+`kubectl exec deploy/timecheck -- cat /logs/timecheck.log`
+```
+2023-11-02 15:33:04.615 +00:00 [INF] Environment: DEV; version: 1.0; time check: 15:33.04
+2023-11-02 15:33:09.596 +00:00 [INF] Environment: DEV; version: 1.0; time check: 15:33.09
+```
+
+## check the config setup:
+`kubectl exec deploy/timecheck -- cat /config/appsettings.json`
+```
+{
+  "Application": {
+    "Version": "1.0",
+    "Environment": "DEV"
+  },
+  "Timer": {
+    "IntervalSeconds": "5"
+  },
+  "Metrics": {
+    "Enabled": false,
+    "Port" : 8080
+  }
+}
+```
+
+
+## apply the ConfigMap and the new Deployment spec:
+`kubectl apply -f timecheck/timecheck-configMap.yaml -f timecheck/timecheck-with-config.yaml`
+```
+configmap/timecheck-config created
+deployment.apps/timecheck configured
+```
+
+## wait for the containers to start:
+`kubectl wait --for=condition=ContainersReady pod -l app=timecheck,version=v2`
+```
+pod/timecheck-68696c9766-hdmlm condition met
+```
+
+## check the log file in the new app container:
+`kubectl exec deploy/timecheck -- cat /logs/timecheck.log`
+```
+Defaulted container "timecheck" out of: timecheck, init-config (init)
+2023-11-02 15:57:41.532 +00:00 [INF] Environment: TEST; version: 1.1; time check: 15:57.41
+2023-11-02 15:57:48.519 +00:00 [INF] Environment: TEST; version: 1.1; time check: 15:57.48
+```
+
+## see the config file built by the init container:
+`kubectl exec deploy/timecheck -- cat /config/appsettings.json`
+```
+Defaulted container "timecheck" out of: timecheck, init-config (init)
+{
+  "Application": {
+    "Version": "1.1",
+    "Environment": "TEST"
+  },
+  "Timer": {
+    "IntervalSeconds": "7"
+  }
+}
+```
+
+## add the sidecar logging container:
+`kubectl apply -f timecheck/timecheck-with-logging.yaml`
+```
+deployment.apps/timecheck configured
+```
+
+## wait for the containers to start:
+`kubectl wait --for=condition=ContainersReady pod -l app=timecheck,version=v3`
+```
+pod/timecheck-69f5b9ddf6-fmtjz condition met
+```
+
+## check the Pods:
+`kubectl get pods -l app=timecheck`
+```
+NAME                         READY   STATUS    RESTARTS   AGE
+timecheck-69f5b9ddf6-fmtjz   2/2     Running   0          16s
+```
+
+## check the containers in the Pod:
+`kubectl get pod -l app=timecheck -o jsonpath='{.items[0].status.containerStatuses[*].name}'`
+```
+logger timecheck
+```
+
+## now you can see the app logs in the Pod:
+`kubectl logs -l app=timecheck -c logger`
+```
+2023-11-02 16:05:59.781 +00:00 [INF] Environment: TEST; version: 1.1; time check: 16:05.59
+2023-11-02 16:06:06.770 +00:00 [INF] Environment: TEST; version: 1.1; time check: 16:06.06
+2023-11-02 16:06:13.767 +00:00 [INF] Environment: TEST; version: 1.1; time check: 16:06.13
+2023-11-02 16:06:20.768 +00:00 [INF] Environment: TEST; version: 1.1; time check: 16:06.20
+2023-11-02 16:06:27.769 +00:00 [INF] Environment: TEST; version: 1.1; time check: 16:06.27
+2023-11-02 16:06:34.765 +00:00 [INF] Environment: TEST; version: 1.1; time check: 16:06.34
+2023-11-02 16:06:41.765 +00:00 [INF] Environment: TEST; version: 1.1; time check: 16:06.41
+```
+
+
+## apply the update:
+`kubectl apply -f timecheck/timecheck-good-citizen.yaml`
+```
+deployment.apps/timecheck configured
+```
+
+## wait for all the containers to be ready:
+`kubectl wait --for=condition=ContainersReady pod -l app=timecheck,version=v4`
+```
+pod/timecheck-9b5654bdd-552rn condition met
+```
+
+## check the running containers:
+`kubectl get pod -l app=timecheck -o jsonpath='{.items[0].status.containerStatuses[*].name}'`
+```
+logger timecheck
+```
+
+## use the sleep container to check the timecheck app health:
+`kubectl exec deploy/sleep -c sleep -- wget -q -O - http://timecheck:8080`
+```
+{"status": "OK"}
+```
+
+## check its metrics:
+`kubectl exec deploy/sleep -c sleep -- wget -q -O - http://timecheck:8081`
+```
+# HELP timechecks_total The total number timechecks.
+# TYPE timechecks_total counter
+timechecks_total 6
+```
+
+# Section 7.4: Abstracting connections with ambassador containers
+
+## deploy the app and Services:
+`kubectl apply -f numbers/`
+```
+service/numbers-api created
+deployment.apps/numbers-api created
+service/numbers-web created
+deployment.apps/numbers-web created
+```
+
+## find the URL for your app:
+`kubectl get svc numbers-web -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:8090'`
+```
+http://localhost:8090
+```
+
+## browse and get yourself a nice random number
+Here it is: 44
+
+## check that the web app has access to other endpoints:
+`kubectl exec deploy/numbers-web -c web -- wget -q -O - http://timecheck:8080`
+```
+{"status": "OK"}
+```
+Ooh, I see. The numbers app is accesing the timecheck app.
+
+
+## apply the update from listing 7.5:
+`kubectl apply -f numbers/update/web-with-proxy.yaml`
+```
+deployment.apps/numbers-web configured
+```
+
+## refresh your browser, and get a new number
+Loading SUPER slowly... Eventually timed out with:
+```
+KIAMOL Random Number Generator
+RNG service unavailable!
+
+(Using API at: http://localhost/api)
+```
+
+## check the proxy container logs:
+`kubectl logs -l app=numbers-web -c proxy`
+```
+** Logging proxy listening on port: 1080 **
+```
+
+## try to read the health of the timecheck app:
+`kubectl exec deploy/numbers-web -c web -- wget -q -O - http://timecheck:8080`
+Stalled for over a minute. Killed it.
+
+## check proxy logs again:
+`kubectl logs -l app=numbers-web -c proxy`
+```
+** Logging proxy listening on port: 1080 **
+```
+
+# Section 7.5: Understanding the Pod environment
+
+## apply the update:
+`kubectl apply -f numbers/update/web-v2-broken-init-container.yaml`
+```
+deployment.apps/numbers-web configured
+```
+
+## check the new Pod:
+`kubectl get po -l app=numbers-web,version=v2`
+```
+NAME                          READY   STATUS                  RESTARTS     AGE
+numbers-web-676948668-ls6kl   0/2     Init:CrashLoopBackOff   1 (5s ago)   8s
+
+NAME                          READY   STATUS       RESTARTS      AGE
+numbers-web-676948668-ls6kl   0/2     Init:Error   2 (13s ago)   16s
+
+NAME                          READY   STATUS                  RESTARTS      AGE
+numbers-web-676948668-ls6kl   0/2     Init:CrashLoopBackOff   2 (14s ago)   29s
+```
+
+## check the logs for the new init container:
+`kubectl logs -l app=numbers-web,version=v2 -c init-version`
+```
+sh: can't create /config-out/version.txt: Read-only file system
+```
+
+## check the status of the Deployment:
+`kubectl get deploy numbers-web`
+```
+NAME          READY   UP-TO-DATE   AVAILABLE   AGE
+numbers-web   1/1     1            1           19m
+```
+
+## check the status of the ReplicaSets:
+`kubectl get rs -l app=numbers-web`
+```
+NAME                     DESIRED   CURRENT   READY   AGE
+numbers-web-676948668    1         1         0       78s
+numbers-web-6bc7f44999   1         1         1       10m
+numbers-web-865c56b9d    0         0         0       19m
+```
+
+
+## check the processes in the current container:
+`kubectl exec deploy/sleep -c sleep -- ps`
+```
+PID   USER     TIME  COMMAND
+    1 root      0:00 /bin/sh -c trap : TERM INT; (while true; do sleep 1000; done) & wait
+    7 root      0:00 /bin/sh -c trap : TERM INT; (while true; do sleep 1000; done) & wait
+   54 root      0:00 sleep 1000
+   55 root      0:00 ps
+```
+
+## apply the update:
+`kubectl apply -f sleep/sleep-with-server-shared.yaml`
+```
+deployment.apps/sleep configured
+```
+
+## wait for the new containers:
+`kubectl wait --for=condition=ContainersReady pod -l app=sleep,version=shared`
+```
+pod/sleep-7d79bb59bc-65g9m condition met
+```
+
+## check the processes again:
+`kubectl exec deploy/sleep -c sleep -- ps`
+```
+PID   USER     TIME  COMMAND
+    1 65535     0:00 /pause
+    7 root      0:00 /bin/sh -c trap : TERM INT; (while true; do sleep 1000; done) & wait
+   12 root      0:00 /bin/sh -c trap : TERM INT; (while true; do sleep 1000; done) & wait
+   13 root      0:00 sleep 1000
+   14 root      0:00 sh -c while true; do echo -e 'HTTP/1.1 200 OK Content-Type: text/plain Content-Length: 7  kiamol' | nc -l -p 8080; done
+   20 root      0:00 nc -l -p 8080
+   21 root      0:00 ps
+```
+
+
+```bash
+λ kubectl delete all -l kiamol=ch07
+service "numbers-api" deleted
+service "numbers-web" deleted
+service "sleep" deleted
+service "timecheck" deleted
+deployment.apps "numbers-api" deleted
+deployment.apps "numbers-web" deleted
+deployment.apps "sleep" deleted
+deployment.apps "timecheck" deleted
+```
+
+# Chapter 7 lab:
+First, I compared the starter file to the solution.
+```
+λ kubectl apply -f lab/pi/
+service/pi-web created
+deployment.apps/pi-web created
+
+λ kubectl describe pod -l app=pi-web
+Name:             pi-web-7c7589fcc7-mvqv9
+Namespace:        default
+Priority:         0
+Service Account:  default
+Node:             docker-desktop/192.168.65.3
+Start Time:       Thu, 02 Nov 2023 12:35:44 -0500
+Labels:           app=pi-web
+                  pod-template-hash=7c7589fcc7
+Annotations:      <none>
+Status:           Running
+IP:               10.1.0.178
+IPs:
+  IP:           10.1.0.178
+Controlled By:  ReplicaSet/pi-web-7c7589fcc7
+Containers:
+  web:
+    Container ID:  docker://e3b0727e788154a303457dddbb7d4f3465d2a962f418d043a4cdf69cefd5855a
+    Image:         kiamol/ch05-pi
+    Image ID:      docker-pullable://kiamol/ch05-pi@sha256:d9346358978c9cecaa1c83c6dca783f460eddc49bbaa6aa914d9c8dcd37689c4
+    Port:          80/TCP
+    Host Port:     0/TCP
+    Command:
+      /scripts/startup.sh
+    State:          Waiting
+      Reason:       RunContainerError
+    Last State:     Terminated
+      Reason:       ContainerCannotRun
+      Message:      failed to create task for container: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: exec: "/scripts/startup.sh": stat /scripts/startup.sh: no such file or directory: unknown
+      Exit Code:    127
+      Started:      Thu, 02 Nov 2023 12:35:46 -0500
+      Finished:     Thu, 02 Nov 2023 12:35:46 -0500
+    Ready:          False
+    Restart Count:  1
+    Environment:    <none>
+    Mounts:
+      /var/run/secrets/kubernetes.io/serviceaccount from kube-api-access-6pj9p (ro)
+Conditions:
+  Type              Status
+  Initialized       True 
+  Ready             False 
+  ContainersReady   False 
+  PodScheduled      True 
+Volumes:
+  kube-api-access-6pj9p:
+    Type:                    Projected (a volume that contains injected data from multiple sources)
+    TokenExpirationSeconds:  3607
+    ConfigMapName:           kube-root-ca.crt
+    ConfigMapOptional:       <nil>
+    DownwardAPI:             true
+QoS Class:                   BestEffort
+Node-Selectors:              <none>
+Tolerations:                 node.kubernetes.io/not-ready:NoExecute op=Exists for 300s
+                             node.kubernetes.io/unreachable:NoExecute op=Exists for 300s
+Events:
+  Type     Reason     Age               From               Message
+  ----     ------     ----              ----               -------
+  Normal   Scheduled  23s               default-scheduler  Successfully assigned default/pi-web-7c7589fcc7-mvqv9 to docker-desktop
+  Normal   Pulled     22s               kubelet            Successfully pulled image "kiamol/ch05-pi" in 663.533542ms (663.945292ms including waiting)
+  Normal   Pulled     21s               kubelet            Successfully pulled image "kiamol/ch05-pi" in 452.038792ms (494.799583ms including waiting)
+  Normal   Pulling    8s (x3 over 23s)  kubelet            Pulling image "kiamol/ch05-pi"
+  Normal   Pulled     8s                kubelet            Successfully pulled image "kiamol/ch05-pi" in 515.585542ms (515.602708ms including waiting)
+  Normal   Created    7s (x3 over 22s)  kubelet            Created container web
+  Warning  Failed     7s (x3 over 22s)  kubelet            Error: failed to start container "web": Error response from daemon: failed to create task for container: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: exec: "/scripts/startup.sh": stat /scripts/startup.sh: no such file or directory: unknown
+
+
+Name:             pi-web-7c7589fcc7-srmm8
+Namespace:        default
+Priority:         0
+Service Account:  default
+Node:             docker-desktop/192.168.65.3
+Start Time:       Thu, 02 Nov 2023 12:35:44 -0500
+Labels:           app=pi-web
+                  pod-template-hash=7c7589fcc7
+Annotations:      <none>
+Status:           Running
+IP:               10.1.0.179
+IPs:
+  IP:           10.1.0.179
+Controlled By:  ReplicaSet/pi-web-7c7589fcc7
+Containers:
+  web:
+    Container ID:  docker://4eda6dc98143bbafdc3d0ef6b781315f2620e5f41b95dd76a6e452bb6f8e292b
+    Image:         kiamol/ch05-pi
+    Image ID:      docker-pullable://kiamol/ch05-pi@sha256:d9346358978c9cecaa1c83c6dca783f460eddc49bbaa6aa914d9c8dcd37689c4
+    Port:          80/TCP
+    Host Port:     0/TCP
+    Command:
+      /scripts/startup.sh
+    State:          Waiting
+      Reason:       RunContainerError
+    Last State:     Terminated
+      Reason:       ContainerCannotRun
+      Message:      failed to create task for container: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: exec: "/scripts/startup.sh": stat /scripts/startup.sh: no such file or directory: unknown
+      Exit Code:    127
+      Started:      Thu, 02 Nov 2023 12:35:47 -0500
+      Finished:     Thu, 02 Nov 2023 12:35:47 -0500
+    Ready:          False
+    Restart Count:  1
+    Environment:    <none>
+    Mounts:
+      /var/run/secrets/kubernetes.io/serviceaccount from kube-api-access-2zp4q (ro)
+Conditions:
+  Type              Status
+  Initialized       True 
+  Ready             False 
+  ContainersReady   False 
+  PodScheduled      True 
+Volumes:
+  kube-api-access-2zp4q:
+    Type:                    Projected (a volume that contains injected data from multiple sources)
+    TokenExpirationSeconds:  3607
+    ConfigMapName:           kube-root-ca.crt
+    ConfigMapOptional:       <nil>
+    DownwardAPI:             true
+QoS Class:                   BestEffort
+Node-Selectors:              <none>
+Tolerations:                 node.kubernetes.io/not-ready:NoExecute op=Exists for 300s
+                             node.kubernetes.io/unreachable:NoExecute op=Exists for 300s
+Events:
+  Type     Reason     Age               From               Message
+  ----     ------     ----              ----               -------
+  Normal   Scheduled  23s               default-scheduler  Successfully assigned default/pi-web-7c7589fcc7-srmm8 to docker-desktop
+  Normal   Pulled     22s               kubelet            Successfully pulled image "kiamol/ch05-pi" in 461.340625ms (1.125120584s including waiting)
+  Normal   Pulled     20s               kubelet            Successfully pulled image "kiamol/ch05-pi" in 490.414875ms (490.434001ms including waiting)
+  Normal   Pulling    6s (x3 over 23s)  kubelet            Pulling image "kiamol/ch05-pi"
+  Normal   Pulled     6s                kubelet            Successfully pulled image "kiamol/ch05-pi" in 518.102042ms (518.120125ms including waiting)
+  Normal   Created    5s (x3 over 21s)  kubelet            Created container web
+  Warning  Failed     5s (x3 over 21s)  kubelet            Error: failed to start container "web": Error response from daemon: failed to create task for container: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: exec: "/scripts/startup.sh": stat /scripts/startup.sh: no such file or directory: unknown
+
+λ kubectl apply -f lab/solution/
+service/pi-web-version created
+deployment.apps/pi-web configured
+
+
+```
+
+Now `http://localhost:8071/` shows `ch07-lab`; `http://localhost:8070/?dp=45`, e.g., returns:
+```
+in: 0 ms.
+from: pi-web-68b64b6b97-j4ctq
+3.141592653589793238462643383279502884197169399
+
+To: 2,520 d.p.
+in: 16 ms.
+from: pi-web-68b64b6b97-j4ctq
+3.141592653589793238462643383279502884197169399375105820974944592307816406286208998628034825342117067982148086513282306647093844609550582231725359408128481117450284102701938521105559644622948954930381964428810975665933446128475648233786783165271201909145648566923460348610454326648213393607260249141273724587006606315588174881520920962829254091715364367892590360011330530548820466521384146951941511609433057270365759591953092186117381932611793105118548074462379962749567351885752724891227938183011949129833673362440656643086021394946395224737190702179860943702770539217176293176752384674818467669405132000568127145263560827785771342757789609173637178721468440901224953430146549585371050792279689258923542019956112129021960864034418159813629774771309960518707211349999998372978049951059731732816096318595024459455346908302642522308253344685035261931188171010003137838752886587533208381420617177669147303598253490428755468731159562863882353787593751957781857780532171226806613001927876611195909216420198938095257201065485863278865936153381827968230301952035301852968995773622599413891249721775283479131515574857242454150695950829533116861727855889075098381754637464939319255060400927701671139009848824012858361603563707660104710181942955596198946767837449448255379774726847104047534646208046684259069491293313677028989152104752162056966024058038150193511253382430035587640247496473263914199272604269922796782354781636009341721641219924586315030286182974555706749838505494588586926995690927210797509302955321165344987202755960236480665499119881834797753566369807426542527862551818417574672890977772793800081647060016145249192173217214772350141441973568548161361157352552133475741849468438523323907394143334547762416862518983569485562099219222184272550254256887671790494601653466804988627232791786085784383827967976681454100953883786360950680064225125205117392984896084128488626945604241965285022210661186306744278622039194945047123713786960956364371917287467764657573962413890865832645995813390478027590099465764078951269468398352595709825822620522489407726719478268482601476990902640136394437455305068203496252451749399651431429809190659250937221696461515709858387410597885959772975498930161753928468138268683868942774155991855925245953959431049972524680845987273644695848653836736222626099124608051243884390451244136549762780797715691435997700129616089441694868555848406353422072225828488648158456028506016842739452267467678895252138522549954666727823986456596116354886230577456498035593634568174324112515076069479451096596
+```
 

@@ -36,6 +36,11 @@ Still not fully understanding, but https://en.wikipedia.org/wiki/Kubernetes#Daem
 ## Chapter 7
 * "The Pod is a virtual environment that creates a shared networking and filesystem space for one or more containers."
 * "...you can’t have some Linux and some Windows containers in the same Pod (yet)..." --> I wonder if you can use `wsl` in a Windows container, though.
+* "Another container in the same Pod can provide a REST API, which reports on what the app container is doing."
+* "...you shouldn’t be running different apps in the same Pod."
+* I like the idea of an init container with `git` installed that pulls the latest code, and then other pods can run it.
+* https://bit.ly/376rBcF maps to https://github.com/sixeyed/kiamol/blob/master/ch07/resources/Sune-Keller-Service-Hotel.pdf
+* "Perhaps you’ve heard of the service mesh architecture, using technologies like Linkerd and Istio..." No, I haven't.
 
 ## Once complete:
 - [ ] consider a certification. See page 8 for some info
