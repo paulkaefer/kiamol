@@ -42,6 +42,10 @@ Still not fully understanding, but https://en.wikipedia.org/wiki/Kubernetes#Daem
 * https://bit.ly/376rBcF maps to https://github.com/sixeyed/kiamol/blob/master/ch07/resources/Sune-Keller-Service-Hotel.pdf
 * "Perhaps you’ve heard of the service mesh architecture, using technologies like Linkerd and Istio..." No, I haven't.
 
+## Chapter 8
+* "Kubernetes is a dynamic environment, and data-heavy apps typically expect to run in a stable environment."
+  * Makes sense. In my work, we certainly have data-heavy processes... I'm excited to read to see if there are options or suggestions.
+
 ## Once complete:
 - [ ] consider a certification. See page 8 for some info
 - [ ] Try *Learn Docker in a Month of Lunches* (per p. xiii)

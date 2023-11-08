@@ -1,93 +1,96 @@
+# Info
+This is code and output from examples in the book.
+
 # Get where I need to be locally:
 `cd GitHub`
 
 # Section 2.1: How Kubernetes runs and manages containers
 
-## run a Pod with a single container; the restart flag tells Kubernetes
-## to create just the Pod and no other resources:
+### run a Pod with a single container; the restart flag tells Kubernetes
+### to create just the Pod and no other resources:
 `kubectl run hello-kiamol --image=kiamol/ch02-hello-kiamol`
-## can add --restart=Never if desired; see https://github.com/sixeyed/kiamol/issues/45
+### can add --restart=Never if desired; see https://github.com/sixeyed/kiamol/issues/45
  
-## wait for the Pod to be ready:
+### wait for the Pod to be ready:
 `kubectl wait --for=condition=Ready pod hello-kiamol`
  
-## list all the Pods in the cluster:
+### list all the Pods in the cluster:
 `kubectl get pods`
  
-## show detailed information about the Pod:
+### show detailed information about the Pod:
 `kubectl describe pod hello-kiamol`
 
-## get the basic information about the Pod:
+### get the basic information about the Pod:
 `kubectl get pod hello-kiamol`
  
-## specify custom columns in the output, selecting network details:
+### specify custom columns in the output, selecting network details:
 `kubectl get pod hello-kiamol --output custom-columns=NAME:metadata.name,NODE_IP:status.hostIP,POD_IP:status.podIP`
  
-## specify a JSONPath query in the output,
-## selecting the ID of the first container in the Pod:
+### specify a JSONPath query in the output,
+### selecting the ID of the first container in the Pod:
 `kubectl get pod hello-kiamol -o jsonpath='{.status.containerStatuses[0].containerID}'`
 
-## find the Pod’s container:
+### find the Pod’s container:
 `docker container ls -q --filter label=io.kubernetes.container.name=hello-kiamol`
  
-## now delete that container:
+### now delete that container:
 `docker container rm -f $(docker container ls -q --filter label=io.kubernetes.container.name=hello-kiamol)`
  
-## check the Pod status:
+### check the Pod status:
 `kubectl get pod hello-kiamol`
  
-## and find the container again:
+### and find the container again:
 `docker container ls -q --filter label=io.kubernetes.container.name=hello-kiamol`
 
-## listen on port 8080 on your machine and send traffic
-## to the Pod on port 80:
+### listen on port 8080 on your machine and send traffic
+### to the Pod on port 80:
 `kubectl port-forward pod/hello-kiamol 8080:80`
  
-## now browse to http://localhost:8080
+### now browse to http://localhost:8080
  
-## when you’re done press ctrl-c to end the port forward
+### when you’re done press ctrl-c to end the port forward
 
 # 2.2 Running Pods with controllers
 
-## create a Deployment called "hello-kiamol-2", running the same web app:
+### create a Deployment called "hello-kiamol-2", running the same web app:
 `kubectl create deployment hello-kiamol-2 --image=kiamol/ch02-hello-kiamol`
  
-## list all the Pods:
+### list all the Pods:
 `kubectl get pods`
 
-## print the labels that the Deployment adds to the Pod:
+### print the labels that the Deployment adds to the Pod:
 `kubectl get deploy hello-kiamol-2 -o jsonpath='{.spec.template.metadata.labels}'`
  
-## list the Pods that have that matching label:
+### list the Pods that have that matching label:
 `kubectl get pods -l app=hello-kiamol-2`
 
-## list all Pods, showing the Pod name and labels:
+### list all Pods, showing the Pod name and labels:
 `kubectl get pods -o custom-columns=NAME:metadata.name,LABELS:metadata.labels`
  
-## update the "app" label for the Deployment’s Pod:
+### update the "app" label for the Deployment’s Pod:
 `kubectl label pods -l app=hello-kiamol-2 --overwrite app=hello-kiamol-x`
  
-## fetch Pods again:
+### fetch Pods again:
 `kubectl get pods -o custom-columns=NAME:metadata.name,LABELS:metadata.labels`
 
-## run a port forward from your local machine to the Deployment:
+### run a port forward from your local machine to the Deployment:
 `kubectl port-forward deploy/hello-kiamol-2 8080:80`
  
-## browse to http://localhost:8080
-## when you’re done, exit with ctrl-c
+### browse to http://localhost:8080
+### when you’re done, exit with ctrl-c
 
 # Section 2.3: Defining Deployments in application manifests
 
-## switch from the root of the kiamol repository to the chapter 2 folder:
+### switch from the root of the kiamol repository to the chapter 2 folder:
 `cd ch02`
  
-## deploy the application from the manifest file:
+### deploy the application from the manifest file:
 `kubectl apply -f pod.yaml`
 ```bash
 pod/hello-kiamol-3 created
 ```
  
-## list running Pods:
+### list running Pods:
 `kubectl get pods`
 ```bash
 NAME                              READY   STATUS    RESTARTS   AGE
@@ -97,16 +100,16 @@ hello-kiamol-2-5dbf59b864-vk6br   1/1     Running   0          4d1h
 hello-kiamol-3                    1/1     Running   0          3s
 ```
 
-## deploy the application from the manifest file:
+### deploy the application from the manifest file:
 `kubectl apply -f https://raw.githubusercontent.com/sixeyed/kiamol/master/ch02/pod.yaml`
 ```bash
 pod/hello-kiamol-3 unchanged
 ```
 
-## run the app using the Deployment manifest:
+### run the app using the Deployment manifest:
 `kubectl apply -f deployment.yaml`
  
-## find Pods managed by the new Deployment:
+### find Pods managed by the new Deployment:
 `kubectl get pods -l app=hello-kiamol-4`
 ```bash
 NAME                             READY   STATUS    RESTARTS   AGE
@@ -115,36 +118,36 @@ hello-kiamol-4-fb9d497f8-rlzg7   1/1     Running   0          4s
 
 # Section 2.4: Working with applications in Pods
 
-## check the internal IP address of the first Pod we ran: 
+### check the internal IP address of the first Pod we ran: 
 `kubectl get pod hello-kiamol -o custom-columns=NAME:metadata.name,POD_IP:status.podIP`
 ```bash
 NAME           POD_IP
 hello-kiamol   10.1.0.16
 ```
  
-## run an interactive shell command in the Pod:
+### run an interactive shell command in the Pod:
 `kubectl exec -it hello-kiamol -- sh`
  
-## inside the Pod, check the IP address:
+### inside the Pod, check the IP address:
 `hostname -i`
  
-## and test the web app:
+### and test the web app:
 `wget -O - http://localhost | head -n 4`
  
-## leave the shell:
+### leave the shell:
 `exit`
 
-## print the latest container logs from Kubernetes:
+### print the latest container logs from Kubernetes:
 `kubectl logs --tail=2 hello-kiamol`
 ```bash
 2023/09/14 17:21:04 [error] 34#34: *1 open() "/usr/share/nginx/html/favicon.ico" failed (2: No such file or directory), client: 127.0.0.1, server: localhost, request: "GET /favicon.ico HTTP/1.1", host: "localhost:8080", referrer: "http://localhost:8080/"
 127.0.0.1 - - [18/Sep/2023:20:03:20 +0000] "GET / HTTP/1.1" 200 353 "-" "Wget" "-"
 ```
  
-## ...and compare the actual container logs--if you’re using Docker:
+### ...and compare the actual container logs--if you’re using Docker:
 `docker container logs --tail=2 $(docker container ls -q --filter label=io.kubernetes.container.name=hello-kiamol)`
 
-## make a call to the web app inside the container for the Pod we created from the Deployment YAML file: 
+### make a call to the web app inside the container for the Pod we created from the Deployment YAML file: 
 `kubectl exec deploy/hello-kiamol-4 -- sh -c 'wget -O - http://localhost > /dev/null'`
 ```bash
 Connecting to localhost (127.0.0.1:80)
@@ -153,19 +156,19 @@ writing to stdout
 written to stdout
 ```
  
-## and check that Pod’s logs:
+### and check that Pod’s logs:
 `kubectl logs --tail=1 -l app=hello-kiamol-4`
 
-## create the local directory:
+### create the local directory:
 `mkdir -p /tmp/kiamol/ch02`
  
-## copy the web page from the Pod:
+### copy the web page from the Pod:
 `kubectl cp hello-kiamol:/usr/share/nginx/html/index.html /tmp/kiamol/ch02/index.html`
 ```bash
 tar: removing leading '/' from member names
 ```
  
-## check the local file contents:
+### check the local file contents:
 `cat /tmp/kiamol/ch02/index.html`
 ```html
 <html>
@@ -187,7 +190,7 @@ tar: removing leading '/' from member names
 
 # Section 2.5: Understanding Kubernetes resource management
 
-## list all running Pods:
+### list all running Pods:
 `kubectl get pods`
 ```bash
 NAME                              READY   STATUS    RESTARTS   AGE
@@ -198,7 +201,7 @@ hello-kiamol-3                    1/1     Running   0          14m
 hello-kiamol-4-fb9d497f8-rlzg7    1/1     Running   0          12m
 ```
  
-## delete all Pods:
+### delete all Pods:
 `kubectl delete pods --all`
 ```bash
 pod "hello-kiamol" deleted
@@ -208,7 +211,7 @@ pod "hello-kiamol-3" deleted
 pod "hello-kiamol-4-fb9d497f8-rlzg7" deleted
 ```
  
-## check again:
+### check again:
 `kubectl get pods`
 ```bash
 NAME                              READY   STATUS    RESTARTS   AGE
@@ -216,7 +219,7 @@ hello-kiamol-2-5dbf59b864-t6m95   1/1     Running   0          21s
 hello-kiamol-4-fb9d497f8-7xkd7    1/1     Running   0          21s
 ```
 
-## view Deployments:
+### view Deployments:
 `kubectl get deploy`
 ```bash
 NAME             READY   UP-TO-DATE   AVAILABLE   AGE
@@ -224,20 +227,20 @@ hello-kiamol-2   1/1     1            1           4d2h
 hello-kiamol-4   1/1     1            1           13m
 ```
  
-## delete all Deployments:
+### delete all Deployments:
 `kubectl delete deploy --all`
 ```bash
 deployment.apps "hello-kiamol-2" deleted
 deployment.apps "hello-kiamol-4" delete
 ```
  
-## view Pods:
+### view Pods:
 `kubectl get pods`
 ```bash
 No resources found in default namespace.
 ```
 
-## check all resources:
+### check all resources:
 `kubectl get all`
 ```bash
 NAME                 TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)   AGE
@@ -246,22 +249,22 @@ service/kubernetes   ClusterIP   10.96.0.1    <none>        443/TCP   4d4h
 
 # Chapter 3: Connecting Pods over the network with Services
 
-## start up your lab environment--run Docker Desktop if it's not running--and switch to this chapter’s directory in your copy of the source code:
+### start up your lab environment--run Docker Desktop if it's not running--and switch to this chapter’s directory in your copy of the source code:
 `cd ch03`
  
-## create two Deployments, which each run one Pod:
+### create two Deployments, which each run one Pod:
 `kubectl apply -f sleep/sleep1.yaml -f sleep/sleep2.yaml`
  
-## wait for the Pod to be ready:
+### wait for the Pod to be ready:
 `kubectl wait --for=condition=Ready pod -l app=sleep-2`
  
-## check the IP address of the second Pod:
+### check the IP address of the second Pod:
 `kubectl get pod -l app=sleep-2 --output jsonpath='{.items[0].status.podIP}'`
 ```bash
 10.1.0.29
 ```
  
-## use that address to ping the second Pod from the first:
+### use that address to ping the second Pod from the first:
 `kubectl exec deploy/sleep-1 -- ping -c 7 $(kubectl get pod -l app=sleep-2 --output jsonpath='{.items[0].status.podIP}')`
 ```bash
 PING 10.1.0.29 (10.1.0.29): 56 data bytes
@@ -278,30 +281,30 @@ PING 10.1.0.29 (10.1.0.29): 56 data bytes
 round-trip min/avg/max = 0.059/0.240/0.385 ms
 ```
 
-## check the current Pod’s IP address:
+### check the current Pod’s IP address:
 `kubectl get pod -l app=sleep-2 --output jsonpath='{.items[0].status.podIP}'`
  
-## delete the Pod so the Deployment replaces it:
+### delete the Pod so the Deployment replaces it:
 `kubectl delete pods -l app=sleep-2`
  
-## check the IP address of the replacement Pod:
+### check the IP address of the replacement Pod:
 `kubectl get pod -l app=sleep-2 --output jsonpath='{.items[0].status.podIP}'`
 ```bash
 10.1.0.31
 ```
 
 
-## deploy the Service defined in listing 3.1:
+### deploy the Service defined in listing 3.1:
 `kubectl apply -f sleep/sleep2-service.yaml`
  
-## show the basic details of the Service:
+### show the basic details of the Service:
 `kubectl get svc sleep-2`
 ```bash
 NAME      TYPE        CLUSTER-IP    EXTERNAL-IP   PORT(S)   AGE
 sleep-2   ClusterIP   10.98.2.165   <none>        80/TCP    6s
 ```
  
-## run a ping command to check connectivity--this will fail:
+### run a ping command to check connectivity--this will fail:
 `kubectl exec deploy/sleep-1 -- ping -c 1 sleep-2`
 ```bash
 PING sleep-2 (10.98.2.165): 56 data bytes
@@ -313,23 +316,23 @@ command terminated with exit code 1
 
 # Section 3.2: Routing traffic between Pods
 
-## run the website and API as separate Deployments: 
+### run the website and API as separate Deployments: 
 `kubectl apply -f numbers/api.yaml -f numbers/web.yaml`
 ```bash
 deployment.apps/numbers-api created
 deployment.apps/numbers-web created
 ```
  
-## wait for the Pod to be ready:
+### wait for the Pod to be ready:
 `kubectl wait --for=condition=Ready pod -l app=numbers-web`
 ```bash
 pod/numbers-web-865c56b9d-9p4m7 condition met
 ```
  
-## forward a port to the web app:
+### forward a port to the web app:
 `kubectl port-forward deploy/numbers-web 8080:80`
  
-## browse to the site at http://localhost:8080 and click the Go button--you'll see an error message
+### browse to the site at http://localhost:8080 and click the Go button--you'll see an error message
 ```
 KIAMOL Random Number Generator
 RNG service unavailable!
@@ -337,26 +340,26 @@ RNG service unavailable!
 (Using API at: http://numbers-api/sixeyed/kiamol/master/ch03/numbers/rng)
 ```
  
-## exit the port forward:
+### exit the port forward:
 ctrl-c
 
-## deploy the Service from listing 3.2:
+### deploy the Service from listing 3.2:
 `kubectl apply -f numbers/api-service.yaml`
 ```
 service/numbers-api created
 ```
 
-## check the Service details:
+### check the Service details:
 `kubectl get svc numbers-api`
 ```bash
 NAME          TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)   AGE
 numbers-api   ClusterIP   10.108.103.175   <none>        80/TCP    32s
 ```
 
-## forward a port to the web app:
+### forward a port to the web app:
 `kubectl port-forward deploy/numbers-web 8080:80`
  
-## browse to the site at http://localhost:8080 and click the Go button
+### browse to the site at http://localhost:8080 and click the Go button
 ```
 KIAMOL Random Number Generator
 Here it is: 89
@@ -365,52 +368,52 @@ Here it is: 89
 ```
 82, 90, 34, 24, 16 on refresh
  
-## exit the port forward:
+### exit the port forward:
 ctrl-c
 
 
-## check the name and IP address of the API Pod:
+### check the name and IP address of the API Pod:
 `kubectl get pod -l app=numbers-api -o custom-columns=NAME:metadata.name,POD_IP:status.podIP`
 ```
 NAME                           POD_IP
 numbers-api-7c599bfcf6-fd4qz   10.1.0.33
 ```
  
-## delete that Pod:
+### delete that Pod:
 `kubectl delete pod -l app=numbers-api`
 ```
 pod "numbers-api-7c599bfcf6-fd4qz" deleted
 ```
  
-## check the replacement Pod:
+### check the replacement Pod:
 `kubectl get pod -l app=numbers-api -o custom-columns=NAME:metadata.name,POD_IP:status.podIP `
 ```
 NAME                           POD_IP
 numbers-api-7c599bfcf6-rztxn   10.1.0.34
 ```
 
-## forward a port to the web app:
+### forward a port to the web app:
 `kubectl port-forward deploy/numbers-web 8080:80`
  
-## browse to the site at http://localhost:8080 and click the Go button
+### browse to the site at http://localhost:8080 and click the Go button
  
-## exit the port forward:
+### exit the port forward:
 ctrl-c
 
 # Section 3.3: Routing external traffic to Pods
 
-## deploy the LoadBalancer Service for the website--if your firewall checks 
-## that you want to allow traffic, then it is OK to say yes:
+### deploy the LoadBalancer Service for the website--if your firewall checks 
+### that you want to allow traffic, then it is OK to say yes:
 `kubectl apply -f numbers/web-service.yaml`
  
-## check the details of the Service:
+### check the details of the Service:
 `kubectl get svc numbers-web`
 ```
 NAME          TYPE           CLUSTER-IP     EXTERNAL-IP   PORT(S)          AGE
 numbers-web   LoadBalancer   10.101.94.89   localhost     8080:30122/TCP   5s
 ```
  
-## use formatting to get the app URL from the EXTERNAL-IP field:
+### use formatting to get the app URL from the EXTERNAL-IP field:
 `kubectl get svc numbers-web -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:8080'`
 ```
 http://localhost:8080
@@ -419,20 +422,20 @@ http://localhost:8080
 
 # Section 3.4: Routing traffic outside Kubernetes
 
-## delete the current API Service:
+### delete the current API Service:
 `kubectl delete svc numbers-api`
  
-## deploy a new ExternalName Service:
+### deploy a new ExternalName Service:
 `kubectl apply -f numbers-services/api-service-externalName.yaml`
  
-## check the Service configuration:
+### check the Service configuration:
 `kubectl get svc numbers-api`
 ```
 NAME          TYPE           CLUSTER-IP   EXTERNAL-IP                 PORT(S)   AGE
 numbers-api   ExternalName   <none>       raw.githubusercontent.com   <none>    6s
 ```
  
-## refresh the website in your browser and test with the Go button
+### refresh the website in your browser and test with the Go button
 ```
 KIAMOL Random Number Generator
 RNG service unavailable!
@@ -443,27 +446,27 @@ RNG service unavailable!
 I think it *should* be using https://raw.githubusercontent.com/sixeyed/kiamol/master/ch03/numbers/rng.
 
 
-## run the DNS lookup tool to resolve the Service name:
+### run the DNS lookup tool to resolve the Service name:
 `kubectl exec deploy/sleep-1 -- sh -c 'nslookup numbers-api | tail -n 5'`
 
 
 
-## remove the existing Service:
+### remove the existing Service:
 `kubectl delete svc numbers-api`
  
-## deploy the headless Service:
+### deploy the headless Service:
 `kubectl apply -f numbers-services/api-service-headless.yaml`
  
-## check the Service:
+### check the Service:
 `kubectl get svc numbers-api`
  
-## check the endpoint: 
+### check the endpoint: 
 `kubectl get endpoints numbers-api`
  
-## verify the DNS lookup:
+### verify the DNS lookup:
 `kubectl exec deploy/sleep-1 -- sh -c 'nslookup numbers-api | grep "^[^*]"'`
  
-## browse to the app--it will fail when you try to get a number
+### browse to the app--it will fail when you try to get a number
 ```
 KIAMOL Random Number Generator
 RNG service unavailable!
@@ -473,33 +476,33 @@ RNG service unavailable!
 
 # Section 3.5: Understanding Kubernetes Service resolution
 
-## show the endpoints for the sleep-2 Service:
+### show the endpoints for the sleep-2 Service:
 `kubectl get endpoints sleep-2`
 ```
 NAME      ENDPOINTS      AGE
 sleep-2   10.1.0.31:80   38m
 ```
  
-## delete the Pod:
+### delete the Pod:
 `kubectl delete pods -l app=sleep-2`
 ```
 pod "sleep-2-789c9f5fb8-45gtv" deleted
 ```
  
-## check the endpoint is updated with the IP of the replacement Pod:
+### check the endpoint is updated with the IP of the replacement Pod:
 `kubectl get endpoints sleep-2`
 ```
 NAME      ENDPOINTS      AGE
 sleep-2   10.1.0.35:80   38m
 ```
  
-## delete the whole Deployment:
+### delete the whole Deployment:
 `kubectl delete deploy sleep-2`
 ```
 deployment.apps "sleep-2" deleted
 ```
  
-## check the endpoint still exists, with no IP addresses:
+### check the endpoint still exists, with no IP addresses:
 `kubectl get endpoints sleep-2`
 ```
 NAME      ENDPOINTS   AGE
@@ -507,21 +510,21 @@ sleep-2   <none>      39m
 ```
 
 
-## check the Services in the default namespace:
+### check the Services in the default namespace:
 `kubectl get svc --namespace default`
 
-## check Services in the system namespace:
+### check Services in the system namespace:
 `kubectl get svc -n kube-system`
 
-## try a DNS lookup to a fully qualified Service name:
+### try a DNS lookup to a fully qualified Service name:
 `kubectl exec deploy/sleep-1 -- sh -c 'nslookup numbers-api.default.svc.cluster.local | grep "^[^*]"'`
 
-## and for a Service in the system namespace:
+### and for a Service in the system namespace:
 `kubectl exec deploy/sleep-1 -- sh -c 'nslookup kube-dns.kube-system.svc.cluster.local | grep "^[^*]"'`
 
 
 
-## delete Deployments:
+### delete Deployments:
 `kubectl delete deploy --all`
 ```
 deployment.apps "numbers-api" deleted
@@ -529,7 +532,7 @@ deployment.apps "numbers-web" deleted
 deployment.apps "sleep-1" deleted
 ```
  
-## and Services:
+### and Services:
 `kubectl delete svc --all`
 ```
 service "kubernetes" deleted
@@ -538,7 +541,7 @@ service "numbers-web" deleted
 service "sleep-2" deleted
 ```
  
-## check what’s running:
+### check what’s running:
 `kubectl get all`
 ```
 NAME                 TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)   AGE
@@ -550,22 +553,22 @@ service/kubernetes   ClusterIP   10.96.0.1    <none>        443/TCP   8s
 # Chapter 4: Configuring applications with ConfigMaps and Secrets
 
 ## Section 4.1: How Kubernetes supplies configuration to apps
-## switch to the exercise directory for this chapter:
+### switch to the exercise directory for this chapter:
 `cd ch04`
  
-## deploy a Pod using the sleep image with no extra configuration:
+### deploy a Pod using the sleep image with no extra configuration:
 `kubectl apply -f sleep/sleep.yaml`
 ```
 deployment.apps/sleep created
 ```
 
-## wait for the Pod to be ready:
+### wait for the Pod to be ready:
 `kubectl wait --for=condition=Ready pod -l app=sleep`
 ```
 pod/sleep-8648c6f777-dbbpg condition met
 ```
  
-## check some of the environment variables in the Pod container:
+### check some of the environment variables in the Pod container:
 `kubectl exec deploy/sleep -- printenv HOSTNAME KIAMOL_CHAPTER`
 ```
 sleep-8648c6f777-dbbpg
@@ -573,13 +576,13 @@ command terminated with exit code 1
 ```
 
 
-## update the Deployment:
+### update the Deployment:
 `kubectl apply -f sleep/sleep-with-env.yaml`
 ```
 deployment.apps/sleep configured
 ```
  
-## check the same environment variables in the new Pod:
+### check the same environment variables in the new Pod:
 `kubectl exec deploy/sleep -- printenv HOSTNAME KIAMOL_CHAPTER`
 ```
 sleep-5b67d77966-f2dmt
@@ -587,20 +590,20 @@ sleep-5b67d77966-f2dmt
 ```
 
 
-## create a ConfigMap with data from the command line:
+### create a ConfigMap with data from the command line:
 `kubectl create configmap sleep-config-literal --from-literal=kiamol.booksection='4.1415'`
 ```
 configmap/sleep-config-literal created
 ```
  
-## check the ConfigMap details:
+### check the ConfigMap details:
 `kubectl get cm sleep-config-literal`
 ```
 NAME                   DATA   AGE
 sleep-config-literal   1      9s
 ```
  
-## show the friendly description of the ConfigMap:
+### show the friendly description of the ConfigMap:
 `kubectl describe cm sleep-config-literal`
 ```
 Name:         sleep-config-literal
@@ -620,13 +623,13 @@ BinaryData
 Events:  <none>
 ```
  
-## deploy the updated Pod spec from listing 4.2:
+### deploy the updated Pod spec from listing 4.2:
 `kubectl apply -f sleep/sleep-with-configMap-env.yaml`
 ```
 deployment.apps/sleep configured
 ```
  
-## check the Kiamol environment variables:
+### check the Kiamol environment variables:
 `kubectl exec deploy/sleep -- sh -c 'printenv | grep "^KIAMOL"'`
 ```
 KIAMOL_CHAPTER=04
@@ -635,26 +638,26 @@ KIAMOL_CHAPTER=04
 ## Section 4.2: Storing and using configuration files in ConfigMaps
 
 
-## load an environment variable into a new ConfigMap:
+### load an environment variable into a new ConfigMap:
 `kubectl create configmap sleep-config-env-file --from-env-file=sleep/ch04.env`
 ```
 configmap/sleep-config-env-file created
 ```
  
-## check the details of the ConfigMap:
+### check the details of the ConfigMap:
 `kubectl get cm sleep-config-env-file`
 ```
 NAME                    DATA   AGE
 sleep-config-env-file   4      13s
 ```
  
-## update the Pod to use the new ConfigMap:
+### update the Pod to use the new ConfigMap:
 `kubectl apply -f sleep/sleep-with-configMap-env-file.yaml`
 ```
 deployment.apps/sleep configured
 ```
 
-## check the values in the container:
+### check the values in the container:
 `kubectl exec deploy/sleep -- sh -c 'printenv | grep "^KIAMOL"'`
 Not the same results as the book...
 ```
@@ -662,28 +665,28 @@ KIAMOL_CHAPTER=04
 ```
 
 
-## deploy the app with a Service to access it:
+### deploy the app with a Service to access it:
 `kubectl apply -f todo-list/todo-web.yaml`
 ```
 deployment.apps/todo-web created
 ```
  
-## wait for the Pod to be ready:
+### wait for the Pod to be ready:
 `kubectl wait --for=condition=Ready pod -l app=todo-web`
 ```
 pod/todo-web-659fff7795-kxrfq condition met
 ```
  
-## get the address of the app:
+### get the address of the app:
 `kubectl get svc todo-web -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:8080'`
 ```
 http://localhost:8080
 ```
 
-## browse to the app and have a play around then try browsing to /config
+### browse to the app and have a play around then try browsing to /config
 Doesn't work for me... `ERR_CONNECTION_REFUSED`.
  
-## check the application logs:
+### check the application logs:
 `kubectl logs -l app=todo-web`
 ```
          at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeNextResourceFilter>g__Awaited|25_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
@@ -698,19 +701,19 @@ Doesn't work for me... `ERR_CONNECTION_REFUSED`.
          at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Http.HttpProtocol.ProcessRequests[TContext](IHttpApplication`1 application)
 ```
 
-## create the JSON ConfigMap:
+### create the JSON ConfigMap:
 `kubectl apply -f todo-list/configMaps/todo-web-config-dev.yaml`
 ```
 configmap/todo-web-config-dev created
 ```
  
-## update the app to use the ConfigMap:
+### update the app to use the ConfigMap:
 `kubectl apply -f todo-list/todo-web-dev.yaml`
 ```
 deployment.apps/todo-web configured
 ```
  
-## refresh your web browser at the /config page for your Service 
+### refresh your web browser at the /config page for your Service 
 This works! Just the config + diagnostics pages. Diagnostics details:
 ```
 Hostname  .NET Version  OS Architecture OS Description
@@ -722,64 +725,64 @@ Source code link: https://github.com/sixeyed/kiamol/tree/master/ch04/docker-imag
 
 # Section 4.3: Surfacing configuration data from ConfigMaps
 
-## show the default config file:
+### show the default config file:
 `kubectl exec deploy/todo-web -- sh -c 'ls -l /app/app*.json'`
 ```
 -rw-r--r--    1 root     root           469 Jun 26  2022 /app/appsettings.json
 ```
  
-## show the config file in the volume mount:
+### show the config file in the volume mount:
 `kubectl exec deploy/todo-web -- sh -c 'ls -l /app/config/*.json'`
 ```
 lrwxrwxrwx    1 root     root            18 Sep 21 17:31 /app/config/config.json -> ..data/config.json
 ```
  
-## check it really is read-only:
+### check it really is read-only:
 `kubectl exec deploy/todo-web -- sh -c 'echo ch04 >> /app/config/config.json'`
 ```
 sh: can't create /app/config/config.json: Read-only file system
 command terminated with exit code 1
 ```
 
-## check the current app logs:
+### check the current app logs:
 `kubectl logs -l app=todo-web`
 Errors...
  
-## deploy the updated ConfigMap:
+### deploy the updated ConfigMap:
 `kubectl apply -f todo-list/configMaps/todo-web-config-dev-with-logging.yaml`
 ```
 configmap/todo-web-config-dev configured
 ```
  
-## wait for the config change to make it to the Pod:
+### wait for the config change to make it to the Pod:
 `sleep 120`
  
-## check the new setting:
+### check the new setting:
 `kubectl exec deploy/todo-web -- sh -c 'ls -l /app/config/*.json'`
 ```
 lrwxrwxrwx    1 root     root            18 Sep 21 17:31 /app/config/config.json -> ..data/config.json
 lrwxrwxrwx    1 root     root            19 Sep 21 17:37 /app/config/logging.json -> ..data/logging.json
 ```
  
-## load a few pages from the site at your Service IP address
+### load a few pages from the site at your Service IP address
  
-## check the logs again:
+### check the logs again:
 `kubectl logs -l app=todo-web`
 More errors...
 
-## deploy the badly configured Pod:
+### deploy the badly configured Pod:
 `kubectl apply -f todo-list/todo-web-dev-broken.yaml`
 ```
 deployment.apps/todo-web configured
 ```
  
-## browse back to the app and see how it looks
+### browse back to the app and see how it looks
 
-## check the app logs:
+### check the app logs:
 `kubectl logs -l app=todo-web`
 Errors...
  
-## and check the Pod status:
+### and check the Pod status:
 `kubectl get pods -l app=todo-web`
 ```
 NAME                        READY   STATUS             RESTARTS      AGE
@@ -787,26 +790,26 @@ todo-web-76b6c46bf6-554nz   0/1     CrashLoopBackOff   1 (13s ago)   15s
 todo-web-b6d6f9ff5-rg5dz    1/1     Running            0             11m
 ```
 
-## apply the change:
+### apply the change:
 `kubectl apply -f todo-list/todo-web-dev-no-logging.yaml`
 ```
 deployment.apps/todo-web configured
 ```
  
-## list the config folder contents:
+### list the config folder contents:
 `kubectl exec deploy/todo-web -- sh -c 'ls /app/config'`
 ```
 config.json
 ```
  
-## now browse to a few pages on the app
+### now browse to a few pages on the app
 Broken except /config and /diagnostics.
  
-## check the logs:
+### check the logs:
 `kubectl logs -l app=todo-web`
 Errors...
  
-## and check the Pods:
+### and check the Pods:
 `kubectl get pods -l app=todo-web`
 ```
 NAME                        READY   STATUS    RESTARTS   AGE
@@ -817,16 +820,16 @@ todo-web-85c477b74c-fqw4c   1/1     Running   0          46s
 # Section 4.4: Configuring sensitive data with Secrets
 
 
-## FOR WINDOWS USERS--this script adds a Base64 command to your session: 
+### FOR WINDOWS USERS--this script adds a Base64 command to your session: 
 `. .\base64.ps1`
  
-## now create a secret from a plain text literal:
+### now create a secret from a plain text literal:
 `kubectl create secret generic sleep-secret-literal --from-literal=secret=shh...`
 ```
 secret/sleep-secret-literal created
 ```
  
-## show the friendly details of the Secret:
+### show the friendly details of the Secret:
 `kubectl describe secret sleep-secret-literal`
 ```
 Name:         sleep-secret-literal
@@ -841,37 +844,37 @@ Data
 secret:  6 bytes
 ````
  
-## retrieve the encoded Secret value:
+### retrieve the encoded Secret value:
 `kubectl get secret sleep-secret-literal -o jsonpath='{.data.secret}'`
 ```
 c2hoLi4u
 ```
  
-## and decode the data:
+### and decode the data:
 `kubectl get secret sleep-secret-literal -o jsonpath='{.data.secret}' | base64 -d`
 ```
 shh...
 ```
 
-## update the sleep Deployment:
+### update the sleep Deployment:
 `kubectl apply -f sleep/sleep-with-secret.yaml`
 ```
 deployment.apps/sleep configured
 ```
  
-## check the environment variable in the Pod:
+### check the environment variable in the Pod:
 `kubectl exec deploy/sleep -- printenv KIAMOL_SECRET`
 ```
 shh...
 ```
 
-## deploy the Secret:
+### deploy the Secret:
 `kubectl apply -f todo-list/secrets/todo-db-secret-test.yaml`
 ```
 secret/todo-db-secret-test created
 ```
  
-## check the data is encoded:
+### check the data is encoded:
 `kubectl get secret todo-db-secret-test -o jsonpath='{.data.POSTGRES_PASSWORD}'`
 ```
 a2lhbW9sLTIqMio=
@@ -883,20 +886,20 @@ kiamol-2*2*
 ```
 
  
-## see what annotations are stored:
+### see what annotations are stored:
 kubectl get secret todo-db-secret-test -o jsonpath='{.metadata.annotations}'
 ```
 {"kubectl.kubernetes.io/last-applied-configuration":"{\"apiVersion\":\"v1\",\"kind\":\"Secret\",\"metadata\":{\"annotations\":{},\"name\":\"todo-db-secret-test\",\"namespace\":\"default\"},\"stringData\":{\"POSTGRES_PASSWORD\":\"kiamol-2*2*\"},\"type\":\"Opaque\"}\n"}
 ```
 
 
-## deploy the YAML from listing 4.13
+### deploy the YAML from listing 4.13
 `kubectl apply -f todo-list/todo-db-test.yaml`
 ```
 deployment.apps/todo-db created
 ```
  
-## check the database logs:
+### check the database logs:
 `kubectl logs -l app=todo-db --tail 1`
 ```
 Error from server (BadRequest): container "db" in pod "todo-db-8b974978c-txzpf" is waiting to start: ContainerCreating
@@ -906,31 +909,31 @@ Error from server (BadRequest): container "db" in pod "todo-db-8b974978c-txzpf" 
 2023-09-21 17:50:37.123 UTC [1] LOG:  database system is ready to accept connections
 ```
  
-## verify the password file permissions:
+### verify the password file permissions:
 `kubectl exec deploy/todo-db -- sh -c 'ls -l $(readlink -f /secrets/postgres_password)'`
 ```
 -r--------    1 root     root            11 Sep 21 17:50 /secrets/..2023_09_21_17_50_27.776472020/postgres_password
 ```
 
-## the ConfigMap configures the app to use Postgres:
+### the ConfigMap configures the app to use Postgres:
 `kubectl apply -f todo-list/configMaps/todo-web-config-test.yaml`
 ```
 configmap/todo-web-config-test created
 ```
 
-## the Secret contains the credentials to connect to Postgres:
+### the Secret contains the credentials to connect to Postgres:
 `kubectl apply -f todo-list/secrets/todo-web-secret-test.yaml`
 ```
 secret/todo-web-secret-test created
 ```
  
-## the Deployment Pod spec uses the ConfigMap and Secret:
+### the Deployment Pod spec uses the ConfigMap and Secret:
 `kubectl apply -f todo-list/todo-web-test.yaml`
 ```
 deployment.apps/todo-web-test created
 ```
  
-## check the database credentials are set in the app:
+### check the database credentials are set in the app:
 `kubectl exec deploy/todo-web-test -- cat /app/secrets/secrets.json`
 ```
 {
@@ -941,12 +944,12 @@ deployment.apps/todo-web-test created
 ```
 Now `http://localhost:8080/` works, but can't see the list, nor add any items...
  
-## browse to the app and add some items
+### browse to the app and add some items
 
 # Section 4.5: Managing app configuration in Kubernetes
 
 
-## delete all the resources in all the files in all the directories:
+### delete all the resources in all the files in all the directories:
 ```bash
 kubectl delete -f sleep/
 kubectl delete -f todo-list/
@@ -998,13 +1001,13 @@ deployment.apps/adminer-web created
 
 # Chapter 5: Storing data with volumes, mounts, and claims
 
-## switch to this chapter’s exercise directory:
+### switch to this chapter’s exercise directory:
 `cd ch05`
  
-## deploy a sleep Pod:
+### deploy a sleep Pod:
 `kubectl apply -f sleep/sleep.yaml`
  
-## write a file inside the container:
+### write a file inside the container:
 `kubectl exec deploy/sleep -- sh -c 'echo ch05 > /file.txt; ls /*.txt'`
 Also tried the one without `sh -c` from after the replacement, but interestingly...
 ```bash
@@ -1031,67 +1034,67 @@ paulkaefer ~/GitHub/kiamol/ch05 λ kubectl exec deploy/sleep -- sh -c 'ls /*.txt
 /file.txt
 ```
  
-## check the container ID:
+### check the container ID:
 `kubectl get pod -l app=sleep -o jsonpath='{.items[0].status.containerStatuses[0].containerID}'`
 ```
 docker://b3140d8ca3ed7aa96309707d8d2ff82bace05ca62f4169a470b1f3595cb61b02
 ```
 
-## kill all processes in the container, causing a Pod restart:
+### kill all processes in the container, causing a Pod restart:
 `kubectl exec -it deploy/sleep -- killall5`
  
-## check the replacment container ID:
+### check the replacment container ID:
 `kubectl get pod -l app=sleep -o jsonpath='{.items[0].status.containerStatuses[0].containerID}'`
 ```
 docker://dffbc776cb327ba56a8861a4649cd9d4d7a273f0e046ce99078f74c0437c3aa7
 ```
  
-## look for the file you wrote--it won’t be there:
+### look for the file you wrote--it won’t be there:
 `kubectl exec deploy/sleep -- ls /*.txt`
 Nothing! Nor if I run:
 `kubectl exec deploy/sleep -- sh -c 'ls /*.txt'`
 
 
-## Now trying with emptyDir:
+### Now trying with emptyDir:
 
-## update the sleep Pod to use an EmptyDir volume:
+### update the sleep Pod to use an EmptyDir volume:
 `kubectl apply -f sleep/sleep-with-emptyDir.yaml`
 ```
 deployment.apps/sleep configured
 ```
  
-## list the contents of the volume mount:
+### list the contents of the volume mount:
 `kubectl exec deploy/sleep -- ls /data`
  
-## create a file in the empty directory:
+### create a file in the empty directory:
 `kubectl exec deploy/sleep -- sh -c 'echo ch05 > /data/file.txt; ls /data'`
 ```
 file.txt
 ```
  
-## check the container ID:
+### check the container ID:
 `kubectl get pod -l app=sleep -o jsonpath='{.items[0].status.containerStatuses[0].containerID}'`
 ```
 docker://412aa9574352e22adcedf6e353e55743d66bc2adf97ceb7b609c0e776eec441e
 ```
  
-## kill the container processes:
+### kill the container processes:
 `kubectl exec deploy/sleep -- killall5`
  
-## check replacement container ID:
+### check replacement container ID:
 `kubectl get pod -l app=sleep -o jsonpath='{.items[0].status.containerStatuses[0].containerID}'`
 ```
 docker://14aa54acc387cf9cb64cf5125ee48009f6ccf2cdcc88704c45915e917c90bfaa
 ```
  
-## read the file in the volume:
+### read the file in the volume:
 `kubectl exec deploy/sleep -- cat /data/file.txt`
 ```
 ch05
 ```
 
 
-## deploy the Pi application:
+### deploy the Pi application:
 `kubectl apply -f pi/v1/ `
 ```
 configmap/pi-proxy-configmap created
@@ -1101,24 +1104,24 @@ service/pi-web created
 deployment.apps/pi-web created
 ```
 
-## wait for the web Pod to be ready:
+### wait for the web Pod to be ready:
 `kubectl wait --for=condition=Ready pod -l app=pi-web`
 ```
 pod/pi-web-55b6cb574-6ldjm condition met
 ```
 
-## find the app URL from your LoadBalancer:
+### find the app URL from your LoadBalancer:
 `kubectl get svc pi-proxy -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:8080/?dp=30000'`
 ```
 http://localhost:8080/?dp=30000
 ```
  
-## browse to the URL, wait for the response then refresh the page
+### browse to the URL, wait for the response then refresh the page
 Browsed there; also tried `http://localhost:8080/?dp=10` and `http://localhost:8080/?dp=100000` successfully!
 
 ![](./ch05/Screenshot_2023-10-04_pi_100000.png)
  
-## check the cache in the proxy
+### check the cache in the proxy
 `kubectl exec deploy/pi-proxy -- ls -l /data/nginx/cache`
 ```
 total 32
@@ -1132,36 +1135,36 @@ drwx------    3 nginx    nginx         4096 Oct  4 14:21 a
 drwx------    3 nginx    nginx         4096 Oct  4 14:20 d
 ```
 
-## delete the proxy Pod: 
+### delete the proxy Pod: 
 `kubectl delete pod -l app=pi-proxy`
 ```
 pod "pi-proxy-866647b9c9-fbkhj" deleted
 ```
  
-## check the cache directory of the replacement Pod:
+### check the cache directory of the replacement Pod:
 `kubectl exec deploy/pi-proxy -- ls -l /data/nginx/cache`
 ```
 total 0
 ```
  
-## refresh your browser at the Pi app URL
+### refresh your browser at the Pi app URL
 
 
-## update the proxy Pod to use a HostPath volume:
+### update the proxy Pod to use a HostPath volume:
 `kubectl apply -f pi/nginx-with-hostPath.yaml`
  
-## list the contents of the cache directory:
+### list the contents of the cache directory:
 `kubectl exec deploy/pi-proxy -- ls -l /data/nginx/cache`
  
-## browse to the app URL
+### browse to the app URL
 
-## delete the proxy Pod:
+### delete the proxy Pod:
 `kubectl delete pod -l app=pi-proxy`
 ```
 pod "pi-proxy-fbf5595-qbdcg" deleted
 ```
  
-## check the cache directory in the replacement Pod:
+### check the cache directory in the replacement Pod:
 `kubectl exec deploy/pi-proxy -- ls -l /data/nginx/cache`
 ```
 drwx------    3 nginx    nginx           60 Oct  4 14:50 1
@@ -1248,21 +1251,21 @@ Server: Kestrel
 </html>
 ```
 
-## refresh your browser
+### refresh your browser
 
-## run a Pod with a volume mount to the host:
+### run a Pod with a volume mount to the host:
 `kubectl apply -f sleep/sleep-with-hostPath.yaml`
 ```
 deployment.apps/sleep configured
 ```
 
-## check the log files inside the container:
+### check the log files inside the container:
 `kubectl exec deploy/sleep -- ls -l /var/log`
 ```
 total 0
 ```
 
-## check the logs on the node using the volume:
+### check the logs on the node using the volume:
 `kubectl exec deploy/sleep -- ls -l /node-root/var/log`
 ```
 total 0
@@ -1270,22 +1273,22 @@ drwxr-xr-x    2 root     root           300 Oct  4 14:55 containers
 drwxr-xr-x   15 root     root           300 Oct  4 14:55 pods
 ```
 
-## check the container user:
+### check the container user:
 `kubectl exec deploy/sleep -- whoami`
 ```
 root
 ```
 
-## update the Pod spec:
+### update the Pod spec:
 `kubectl apply -f sleep/sleep-with-hostPath-subPath.yaml`
 ```
 deployment.apps/sleep configured
 ```
 
-## check the Pod logs on the node:
+### check the Pod logs on the node:
 `kubectl exec deploy/sleep -- sh -c 'ls /pod-logs | grep _pi-'`
  
-## check the container logs:
+### check the container logs:
 `kubectl exec deploy/sleep -- sh -c 'ls /container-logs | grep nginx'`
 ```
 pi-proxy-fbf5595-z72vn_default_nginx-3e3867270569fbffc25d50c839fa821c52a2db352314a2e442db42afaf65e7e0.log
@@ -1294,33 +1297,33 @@ pi-proxy-fbf5595-z72vn_default_nginx-3e3867270569fbffc25d50c839fa821c52a2db35231
 
 # Section 5.3: Storing clusterwide data with persistent volumes and claims
 
-## apply a custom label to the first node in your cluster: 
+### apply a custom label to the first node in your cluster: 
 `kubectl label node $(kubectl get nodes -o jsonpath='{.items[0].metadata.name}') kiamol=ch05`
 ```
 node/docker-desktop labeled
 ```
 
-## check the nodes with a label selector:
+### check the nodes with a label selector:
 `kubectl get nodes -l kiamol=ch05`
 ```
 NAME             STATUS   ROLES           AGE   VERSION
 docker-desktop   Ready    control-plane   20d   v1.27.2
 ```
 
-## deploy a PV that uses a local volume on the labeled node:
+### deploy a PV that uses a local volume on the labeled node:
 `kubectl apply -f todo-list/persistentVolume.yaml`
 ```
 persistentvolume/pv01 created
 ```
 
-## check the PV:
+### check the PV:
 `kubectl get pv`
 ```
 NAME   CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS      CLAIM   STORAGECLASS   REASON   AGE
 pv01   50Mi       RWO            Retain           Available                                   7s
 ```
 
-## Listing 5.6:
+### Listing 5.6:
 Not sure I get this:
 ```
 storageClassName: ""        # A blank class means a PV needs to exist.
@@ -1328,20 +1331,20 @@ storageClassName: ""        # A blank class means a PV needs to exist.
 Ah, from [here](https://kubernetes.io/docs/concepts/storage/storage-classes/), I see,
 > When a PVC does not specify a `storageClassName`, the default StorageClass is used.
 
-## create a PVC that will bind to the PV:
+### create a PVC that will bind to the PV:
 `kubectl apply -f todo-list/postgres-persistentVolumeClaim.yaml`
 ```
 persistentvolumeclaim/postgres-pvc created
 ```
  
-## check PVCs:
+### check PVCs:
 `kubectl get pvc`
 ```
 NAME           STATUS   VOLUME   CAPACITY   ACCESS MODES   STORAGECLASS   AGE
 postgres-pvc   Bound    pv01     50Mi       RWO                           10s
 ```
 
-## check PVs:
+### check PVs:
 `kubectl get pv`
 ```
 NAME   CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS   CLAIM                  STORAGECLASS   REASON   AGE
@@ -1349,13 +1352,13 @@ pv01   50Mi       RWO            Retain           Bound    default/postgres-pvc 
 ```
 
 
-## create a PVC that doesn’t match any available PVs:
+### create a PVC that doesn’t match any available PVs:
 `kubectl apply -f todo-list/postgres-persistentVolumeClaim-too-big.yaml`
 ```
 persistentvolumeclaim/postgres-pvc-toobig created
 ```
 
-## check claims:
+### check claims:
 `kubectl get pvc`
 ```
 NAME                  STATUS    VOLUME   CAPACITY   ACCESS MODES   STORAGECLASS   AGE
@@ -1363,23 +1366,23 @@ postgres-pvc          Bound     pv01     50Mi       RWO                         
 postgres-pvc-toobig   Pending                                                     15s
 ```
 
-## run the sleep Pod, which has access to the node’s disk:
+### run the sleep Pod, which has access to the node’s disk:
 `kubectl apply -f sleep/sleep-with-hostPath.yaml`
 ```
 deployment.apps/sleep configured
 ```
 
-## wait for the Pod to be ready:
+### wait for the Pod to be ready:
 `kubectl wait --for=condition=Ready pod -l app=sleep`
 ```
 pod/sleep-6f58497b9f-5j6jt condition met
 ```
 
-## create the directory path on the node, which the PV expects:
+### create the directory path on the node, which the PV expects:
 `kubectl exec deploy/sleep -- mkdir -p /node-root/volumes/pv01`
 
 
-## deploy the database:
+### deploy the database:
 `kubectl apply -f todo-list/postgres/`
 ```
 secret/todo-db-secret created
@@ -1387,16 +1390,16 @@ service/todo-db created
 deployment.apps/todo-db created
 ```
  
-## wait for Postgres to initialize:
+### wait for Postgres to initialize:
 `sleep 30`
  
-## check the database logs: 
+### check the database logs: 
 `kubectl logs -l app=todo-db --tail 1`
 ```
 2023-10-05 14:05:42.275 UTC [1] LOG:  database system is ready to accept connections
 ```
  
-## check the data files in the volume:
+### check the data files in the volume:
 `kubectl exec deploy/sleep -- sh -c 'ls -l /node-root/volumes/pv01 | grep wal'`
 ```
 drwx------    3 70       70              80 Oct  5 14:05 pg_wal
@@ -1417,7 +1420,7 @@ drwx------    3 70       70              80 Oct  5 14:05 ..
 ```
 That printed gibberish, but I see segments like `pg_partitioned_table` and `pg_statistic_ext`.
 
-## deploy the web app components:
+### deploy the web app components:
 `kubectl apply -f todo-list/web/`
 ```
 configmap/todo-web-config created
@@ -1426,40 +1429,40 @@ service/todo-web created
 deployment.apps/todo-web created
 ```
  
-## wait for the web Pod:
+### wait for the web Pod:
 `kubectl wait --for=condition=Ready pod -l app=todo-web`
 ```
 pod/todo-web-679889ff7-j7lrj condition met
 ```
  
-## get the app URL from the Service:
+### get the app URL from the Service:
 `kubectl get svc todo-web -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:8081/new'`
 ```
 http://localhost:8081/new
 ```
 
-## browse to the app, and add a new item
+### browse to the app, and add a new item
 ```
 This page isn’t workinglocalhost is currently unable to handle this request.
 HTTP ERROR 500
 ```
 So I'll skip the next steps :-(
-## delete the database Pod:
+### delete the database Pod:
 `kubectl delete pod -l app=todo-db`
-## check the contents of the volume on the node:
+### check the contents of the volume on the node:
 `kubectl exec deploy/sleep -- ls -l /node-root/volumes/pv01/pg_wal`
  
-## check that your item is still in the to-do list
+### check that your item is still in the to-do list
 
 # Section 5.4: Dynamic volume provisioning and storage classes
 
-## deploy the PVC from listing 5.8:
+### deploy the PVC from listing 5.8:
 `kubectl apply -f todo-list/postgres-persistentVolumeClaim-dynamic.yaml`
 ```
 persistentvolumeclaim/postgres-pvc-dynamic created
 ```
 
-## check claims and volumes:
+### check claims and volumes:
 `kubectl get pvc`
 `kubectl get pv`
 ```
@@ -1473,13 +1476,13 @@ pv01                                       50Mi       RWO            Retain     
 pvc-da17382a-f0ee-43fc-9ded-126ec784daa2   100Mi      RWO            Delete           Bound    default/postgres-pvc-dynamic   hostpath                16s
 ```
 
-## delete the claim:
+### delete the claim:
 `kubectl delete pvc postgres-pvc-dynamic`
 ```
 persistentvolumeclaim "postgres-pvc-dynamic" deleted
 ```
 
-## check volumes again:
+### check volumes again:
 `kubectl get pv`
 ```
 NAME   CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS   CLAIM                  STORAGECLASS   REASON   AGE
@@ -1494,17 +1497,17 @@ postgres-pvc-toobig   Pending                                                   
 ```
 
 
-## list the storage classes in the cluster:
+### list the storage classes in the cluster:
 `kubectl get storageclass`
 ```
 NAME                 PROVISIONER          RECLAIMPOLICY   VOLUMEBINDINGMODE   ALLOWVOLUMEEXPANSION   AGE
 hostpath (default)   docker.io/hostpath   Delete          Immediate           false                  20d
 ```
  
-## clone the default on Windows:
+### clone the default on Windows:
 `Set-ExecutionPolicy Bypass -Scope Process -Force; ./cloneDefaultStorageClass.ps1`
  
-## OR on Mac/Linux:
+### OR on Mac/Linux:
 `chmod +x cloneDefaultStorageClass.sh && ./cloneDefaultStorageClass.sh`
 ```
 configmap/clone-script created
@@ -1515,7 +1518,7 @@ configmap "clone-script" deleted
 pod "clone-sc" deleted
 ```
 
-## list storage classes:
+### list storage classes:
 `kubectl get sc`
 ```
 NAME                 PROVISIONER          RECLAIMPOLICY   VOLUMEBINDINGMODE   ALLOWVOLUMEEXPANSION   AGE
@@ -1523,19 +1526,19 @@ hostpath (default)   docker.io/hostpath   Delete          Immediate           fa
 kiamol               docker.io/hostpath   Delete          Immediate           false                  49s
 ```
 
-## create a new PVC using the custom storage class:
+### create a new PVC using the custom storage class:
 `kubectl apply -f storageClass/postgres-persistentVolumeClaim-storageClass.yaml`
 ```
 persistentvolumeclaim/postgres-pvc-kiamol created
 ```
 
-## update the database to use the new PVC:
+### update the database to use the new PVC:
 `kubectl apply -f storageClass/todo-db.yaml`
 ```
 deployment.apps/todo-db configured
 ```
 
-## check the storage:
+### check the storage:
 `kubectl get pvc`
 `kubectl get pv`
 ```
@@ -1549,19 +1552,19 @@ pv01                                       50Mi       RWO            Retain     
 pvc-3694c25d-f61d-411f-83d6-4cae06552867   100Mi      RWO            Delete           Bound    default/postgres-pvc-kiamol   kiamol                  30s
 ```
  
-## check the Pods:
+### check the Pods:
 `kubectl get pods -l app=todo-db`
 ```
 NAME                       READY   STATUS    RESTARTS   AGE
 todo-db-745877d464-6pxvr   1/1     Running   0          34s
 ```
  
-## refresh the list in your to-do app
+### refresh the list in your to-do app
 Adding items is still not working, but I can still access `http://localhost:8081/new`. The list is (still) empty.
 
 # Section 5.5: Understanding storage choices in Kubernetes
 
-## delete deployments, PVCs, PVs, and Services:
+### delete deployments, PVCs, PVs, and Services:
 `kubectl delete -f pi/v1 -f sleep/ -f storageClass/ -f todo-list/web -f todo-list/postgres -f todo-list/`
 ```
 configmap "pi-proxy-configmap" deleted
@@ -1593,7 +1596,7 @@ Error from server (NotFound): error when deleting "todo-list/postgres/todo-db.ya
 Error from server (NotFound): error when deleting "todo-list/postgres-persistentVolumeClaim-dynamic.yaml": persistentvolumeclaims "postgres-pvc-dynamic" not found
 ```
  
-## delete the custom storage class:
+### delete the custom storage class:
 `kubectl delete sc kiamol`
 ```
 storageclass.storage.k8s.io "kiamol" deleted
@@ -1615,10 +1618,10 @@ Most of `http://localhost:8082` doesn't work for me, except `http://localhost:80
 Figure 6.1: "Every software problem can be solved by adding another layer of abstraction."
 
 
-## switch to this chapter's exercises:
+### switch to this chapter's exercises:
 `cd ch06`
 
-## deploy the ReplicaSet and Service:
+### deploy the ReplicaSet and Service:
 `kubectl apply -f whoami/`
 ```
 Unable to connect to the server: EOF
@@ -1638,32 +1641,32 @@ service/whoami-web created
 replicaset.apps/whoami-web created
 ```
 
-## check the resource:
+### check the resource:
 `kubectl get replicaset whoami-web`
 ```
 NAME         DESIRED   CURRENT   READY   AGE
 whoami-web   1         1         1       19s
 ```
 
-## make an HTTP GET call to the Service:
+### make an HTTP GET call to the Service:
 `curl $(kubectl get svc whoami-web -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:8088')`
 ```
 "I'm whoami-web-pp7d7 running on Linux 6.4.16-linuxkit #1 SMP PREEMPT Sat Sep 23 13:36:48 UTC 2023"
 ```
 
-## delete all the Pods:
+### delete all the Pods:
 `kubectl delete pods -l app=whoami-web`
 ```
 pod "whoami-web-pp7d7" deleted
 ```
 
-## repeat the HTTP call:
+### repeat the HTTP call:
 `curl $(kubectl get svc whoami-web -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:8088')`
 ```
 "I'm whoami-web-tct2n running on Linux 6.4.16-linuxkit #1 SMP PREEMPT Sat Sep 23 13:36:48 UTC 2023"
 ```
 
-## show the detail about the ReplicaSet:
+### show the detail about the ReplicaSet:
 `kubectl describe rs whoami-web`
 ```
 Name:         whoami-web
@@ -1691,13 +1694,13 @@ Events:
 ```
 
 
-## deploy the update:
+### deploy the update:
 `kubectl apply -f whoami/update/whoami-replicas-3.yaml`
 ```
 replicaset.apps/whoami-web configured
 ```
  
-## check Pods:
+### check Pods:
 `kubectl get pods -l app=whoami-web`
 ```
 NAME               READY   STATUS    RESTARTS   AGE
@@ -1706,7 +1709,7 @@ whoami-web-tct2n   1/1     Running   0          4m3s
 whoami-web-z928n   1/1     Running   0          5s
 ```
  
-## delete all the Pods:
+### delete all the Pods:
 `kubectl delete pods -l app=whoami-web`
 ```
 pod "whoami-web-jsnpt" deleted
@@ -1714,7 +1717,7 @@ pod "whoami-web-tct2n" deleted
 pod "whoami-web-z928n" deleted
 ```
 
-## check again:
+### check again:
 `kubectl get pods -l app=whoami-web`
 ```
 NAME               READY   STATUS    RESTARTS   AGE
@@ -1723,7 +1726,7 @@ whoami-web-8qbbf   1/1     Running   0          11s
 whoami-web-d47qj   1/1     Running   0          11s
 ```
  
-## repeat this HTTP call a few times:
+### repeat this HTTP call a few times:
 `curl $(kubectl get svc whoami-web -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:8088')`
 ```
 Thu Oct 12 12:16:04
@@ -1746,20 +1749,20 @@ paulkaefer ~/GitHub/kiamol/ch06 λ curl $(kubectl get svc whoami-web -o jsonpath
 Ran a few more, and got `d47qj` then `8qbbf` and then those two repeated a couple times. I ran more, and saw the `59586` again after a bit.
 
 
-## run a sleep Pod:
+### run a sleep Pod:
 `kubectl apply -f sleep.yaml`
 ```
 deployment.apps/sleep created
 ```
  
-## check the details of the who-am-I Service:
+### check the details of the who-am-I Service:
 `kubectl get svc whoami-web`
 ```
 NAME         TYPE           CLUSTER-IP      EXTERNAL-IP   PORT(S)          AGE
 whoami-web   LoadBalancer   10.110.36.180   localhost     8088:31562/TCP   8m30s
 ```
 
-## run a DNS lookup for the Service in the sleep Pod:
+### run a DNS lookup for the Service in the sleep Pod:
 `kubectl exec deploy/sleep -- sh -c 'nslookup whoami-web | grep "^[^*]"'`
 ```
 Server:   10.96.0.10
@@ -1768,7 +1771,7 @@ Name: whoami-web.default.svc.cluster.local
 Address: 10.110.36.180
 ```
  
-## make some HTTP calls:
+### make some HTTP calls:
 `kubectl exec deploy/sleep -- sh -c 'for i in 1 2 3; do curl -w \\n -s http://whoami-web:8088; done;'`
 ```
 "I'm whoami-web-8qbbf running on Linux 6.4.16-linuxkit #1 SMP PREEMPT Sat Sep 23 13:36:48 UTC 2023"
@@ -1777,41 +1780,41 @@ Address: 10.110.36.180
 ```
 
 
-## deploy the Pi app:
+### deploy the Pi app:
 `kubectl apply -f pi/web/`
 ```
 service/pi-web created
 deployment.apps/pi-web created
 ```
 
-## check the ReplicaSet:
+### check the ReplicaSet:
 `kubectl get rs -l app=pi-web`
 ```
 NAME               DESIRED   CURRENT   READY   AGE
 pi-web-55b6cb574   2         2         2       8s
 ```
 
-## scale up to more replicas:
+### scale up to more replicas:
 `kubectl apply -f pi/web/update/web-replicas-3.yaml`
 ```
 deployment.apps/pi-web configured
 ```
 Cool. I see the YAML file has `replicas: 3`.
 
-## check the RS:
+### check the RS:
 `kubectl get rs -l app=pi-web`
 ```
 NAME               DESIRED   CURRENT   READY   AGE
 pi-web-55b6cb574   3         3         3       40s
 ```
 
-## deploy a changed Pod spec with enhanced logging:
+### deploy a changed Pod spec with enhanced logging:
 `kubectl apply -f pi/web/update/web-logging-level.yaml`
 ```
 deployment.apps/pi-web configured
 ```
 
-## check ReplicaSets again:
+### check ReplicaSets again:
 `kubectl get rs -l app=pi-web`
 ```
 NAME                DESIRED   CURRENT   READY   AGE
@@ -1820,13 +1823,13 @@ pi-web-658956d56f   3         3         3       12s
 ```
 
 
-## we need to scale the Pi app fast:
+### we need to scale the Pi app fast:
 `kubectl scale --replicas=4 deploy/pi-web`
 ```
 deployment.apps/pi-web scaled
 ```
 
-## check which ReplicaSet makes the change:
+### check which ReplicaSet makes the change:
 `kubectl get rs -l app=pi-web`
 ```
 NAME                DESIRED   CURRENT   READY   AGE
@@ -1834,13 +1837,13 @@ pi-web-55b6cb574    0         0         0       2m6s
 pi-web-658956d56f   4         4         4       76s
 ```
 
-## now we can revert back to the original logging level:
+### now we can revert back to the original logging level:
 `kubectl apply -f pi/web/update/web-replicas-3.yaml`
 ```
 deployment.apps/pi-web configured
 ```
 
-## but that will undo the scale we set manually:
+### but that will undo the scale we set manually:
 `kubectl get rs -l app=pi-web`
 ```
 NAME                DESIRED   CURRENT   READY   AGE
@@ -1848,7 +1851,7 @@ pi-web-55b6cb574    3         3         3       2m24s
 pi-web-658956d56f   0         0         0       94s
 ```
 
-## check the Pods:
+### check the Pods:
 `kubectl get pods -l app=pi-web`
 ```
 NAME                     READY   STATUS    RESTARTS   AGE
@@ -1859,7 +1862,7 @@ pi-web-55b6cb574-xx7bh   1/1     Running   0          14s
 
 Probably best to not scale manually.
 
-## list ReplicaSets with labels:
+### list ReplicaSets with labels:
 `kubectl get rs -l app=pi-web  --show-labels`
 ```
 NAME                DESIRED   CURRENT   READY   AGE     LABELS
@@ -1867,7 +1870,7 @@ pi-web-55b6cb574    3         3         3       3m44s   app=pi-web,pod-template-
 pi-web-658956d56f   0         0         0       2m54s   app=pi-web,pod-template-hash=658956d56f
 ```
 
-## list Pods with labels:
+### list Pods with labels:
 `kubectl get po -l app=pi-web  --show-labels`
 ```
 NAME                     READY   STATUS    RESTARTS   AGE   LABELS
@@ -1876,7 +1879,7 @@ pi-web-55b6cb574-kzngl   1/1     Running   0          96s   app=pi-web,pod-templ
 pi-web-55b6cb574-xx7bh   1/1     Running   0          94s   app=pi-web,pod-template-hash=55b6cb574
 ```
 
-## deploy the proxy resources:
+### deploy the proxy resources:
 `kubectl apply -f pi/proxy/`
 ```
 configmap/pi-proxy-configmap created
@@ -1884,13 +1887,13 @@ service/pi-proxy created
 deployment.apps/pi-proxy created
 ```
 
-## get the URL to the proxied app:
+### get the URL to the proxied app:
 `kubectl get svc whoami-web -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:8080/?dp=10000'`
 ```
 http://localhost:8080/?dp=10000
 ```
 
-## browse to the app, and try a few different values for 'dp' in the URL
+### browse to the app, and try a few different values for 'dp' in the URL
 ```
 To: 10,000 d.p.
 in: 130 ms.
@@ -1922,7 +1925,7 @@ Ah, perhaps the "It would be nice to fix this by using shared storage, so every 
 
 I stopped at `TRY IT NOW Deploy an update to the proxy spec`.
 
-## Resuming 2023-10-31:
+### Resuming 2023-10-31:
 ```bash
 λ kubectl get all
 NAME                            READY   STATUS    RESTARTS        AGE
@@ -1955,13 +1958,13 @@ replicaset.apps/sleep-8648c6f777      1         1         1       18d
 replicaset.apps/whoami-web            3         3         3       18d
 ```
 
-## deploy the updated spec:
+### deploy the updated spec:
 `kubectl apply -f pi/proxy/update/nginx-hostPath.yaml`
 ```
 deployment.apps/pi-proxy configured
 ```
  
-## check the Pods--the new spec adds a third replica:
+### check the Pods--the new spec adds a third replica:
 `kubectl get po -l app=pi-proxy`
 ```
 NAME                        READY   STATUS    RESTARTS   AGE
@@ -1970,10 +1973,10 @@ pi-proxy-684954445c-pgsgr   1/1     Running   0          6s
 pi-proxy-684954445c-pmkld   1/1     Running   0          8s
 ```
  
-## browse back to the Pi app, and refresh it a few times
+### browse back to the Pi app, and refresh it a few times
 http://localhost:8080/
  
-## check the proxy logs:
+### check the proxy logs:
 `kubectl logs -l app=pi-proxy --tail 1`
 ```
 192.168.65.3 - - [31/Oct/2023:15:15:21 +0000] "GET /?dp=100 HTTP/1.1" 200 1102 "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36"
@@ -1983,33 +1986,33 @@ http://localhost:8080/
 
 # Section 6.3: Scaling for high availability with DaemonSets
 
-## deploy the DaemonSet:
+### deploy the DaemonSet:
 `kubectl apply -f pi/proxy/daemonset/nginx-ds.yaml`
 ```
 daemonset.apps/pi-proxy created
 ```
  
-## check the endpoints used in the proxy service:
+### check the endpoints used in the proxy service:
 `kubectl get endpoints pi-proxy`
 ```
 NAME       ENDPOINTS                                               AGE
 pi-proxy   10.1.0.147:80,10.1.0.149:80,10.1.0.150:80 + 1 more...   18d
 ```
 
-## delete the Deployment:
+### delete the Deployment:
 `kubectl delete deploy pi-proxy`
 ```
 deployment.apps "pi-proxy" deleted
 ```
 
-## check the DaemonSet:
+### check the DaemonSet:
 `kubectl get daemonset pi-proxy`
 ```
 NAME       DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR   AGE
 pi-proxy   1         1         1       1            1           <none>          45s
 ```
 
-## check the Pods:
+### check the Pods:
 `kubectl get po -l app=pi-proxy`
 ```
 NAME             READY   STATUS    RESTARTS   AGE
@@ -2017,16 +2020,16 @@ pi-proxy-8lkwh   1/1     Running   0          58s
 ```
 Maybe I wasn't fast enough to see the Terminating... like in Figure 6.13?
 
-## refresh your latest Pi calculation on the browser
+### refresh your latest Pi calculation on the browser
 
-## check the status of the DaemonSet:
+### check the status of the DaemonSet:
 `kubectl get ds pi-proxy`
 ```
 NAME       DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR   AGE
 pi-proxy   1         1         1       1            1           <none>          3m5s
 ```
  
-## delete its Pod:
+### delete its Pod:
 `kubectl delete po -l app=pi-proxy`
 Ran twice by accident:
 ```
@@ -2041,7 +2044,7 @@ localhost didn’t send any data.
 ERR_EMPTY_RESPONSE
 ```
  
-## check the Pods:
+### check the Pods:
 `kubectl get po -l app=pi-proxy`
 ```
 NAME             READY   STATUS    RESTARTS   AGE
@@ -2059,59 +2062,59 @@ from: pi-web-55b6cb574-xx7bh
 3.141592653589793238462643383279502884197169399375105820974944592307816406286208998628034825342117067982148086513282306647093844609550582231725359408128481117450284102701938521105559644622948954930381964428810975665933446128475648233786783165271201909145648566923460348610454326648213393607260249141273724587006606315588174881520920962829254091715364367
 ```
 
-## update the DaemonSet spec:
+### update the DaemonSet spec:
 `kubectl apply -f pi/proxy/daemonset/nginx-ds-nodeSelector.yaml`
 ```
 daemonset.apps/pi-proxy configured
 ```
 
-## check the DS:
+### check the DS:
 `kubectl get ds pi-proxy`
 ```
 NAME       DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR   AGE
 pi-proxy   0         0         0       0            0           kiamol=ch06     33m
 ```
 
-## check the Pods:
+### check the Pods:
 `kubectl get po -l app=pi-proxy`
 ```
 No resources found in default namespace.
 ```
  
-## now label a node in your cluster so it matches the selector:
+### now label a node in your cluster so it matches the selector:
 `kubectl label node $(kubectl get nodes -o jsonpath='{.items[0].metadata.name}') kiamol=ch06 --overwrite`
 ```
 node/docker-desktop labeled
 ```
  
-## check the Pods again:
+### check the Pods again:
 `kubectl get ds pi-proxy`
 ```
 NAME       DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR   AGE
 pi-proxy   1         1         1       1            1           kiamol=ch06     35m
 ```
 
-## delete the DaemonSet, but leave the Pod alone: 
+### delete the DaemonSet, but leave the Pod alone: 
 `kubectl delete ds pi-proxy --cascade=false`
 ```
 warning: --cascade=false is deprecated (boolean value) and can be replaced with --cascade=orphan.
 ```
 `kubectl delete ds pi-proxy --cascade=orphan`
  
-## check the Pod:
+### check the Pod:
 `kubectl get po -l app=pi-proxy`
 ```
 NAME             READY   STATUS    RESTARTS   AGE
 pi-proxy-sklbm   1/1     Running   0          2m34s
 ```
  
-## recreate the DS:
+### recreate the DS:
 `kubectl apply -f pi/proxy/daemonset/nginx-ds-nodeSelector.yaml`
 ```
 daemonset.apps/pi-proxy created
 ```
  
-## check the DS and Pod:
+### check the DS and Pod:
 ```bash
 kubectl get ds pi-proxy
  
@@ -2126,13 +2129,13 @@ NAME             READY   STATUS    RESTARTS   AGE
 pi-proxy-sklbm   1/1     Running   0          2m34s
 ```
  
-## delete the DS again, without the cascade option:
+### delete the DS again, without the cascade option:
 `kubectl delete ds pi-proxy`
 ```
 daemonset.apps "pi-proxy" deleted
 ```
  
-## check the Pods:
+### check the Pods:
 `kubectl get po -l app=pi-proxy`
 ```
 NAME             READY   STATUS        RESTARTS   AGE
@@ -2221,7 +2224,7 @@ This page isn’t workingIf the problem continues, contact the site owner.
 HTTP ERROR 400
 ```
 
-## Sample Solution
+### Sample Solution
 
 Add the RNG label to a node:
 
@@ -2292,29 +2295,29 @@ deployment.apps "numbers-web" deleted
 
 ## Section 7.1: How containers communicate in a Pod
 
-## switch to the chapter folder:
+### switch to the chapter folder:
 `cd ch07`
 
-## deploy the Pod spec:
+### deploy the Pod spec:
 `kubectl apply -f sleep/sleep-with-file-reader.yaml`
 ```
 deployment.apps/sleep created
 ```
 
-## get the detailed Pod information:
+### get the detailed Pod information:
 `kubectl get pod -l app=sleep -o wide`
 ```
 NAME                     READY   STATUS    RESTARTS   AGE   IP           NODE             NOMINATED NODE   READINESS GATES
 sleep-79d7fffc9b-qtvvc   2/2     Running   0          8s    10.1.0.166   docker-desktop   <none>           <none>
 ```
 
-## show the container names:
+### show the container names:
 `kubectl get pod -l app=sleep -o jsonpath='{.items[0].status.containerStatuses[*].name}'`
 ```
 file-reader sleep
 ```
 
-## check the Pod logs--this will fail:
+### check the Pod logs--this will fail:
 `kubectl logs -l app=sleep`
 ```
 Defaulted container "sleep" out of: sleep, file-reader
@@ -2322,22 +2325,22 @@ Defaulted container "sleep" out of: sleep, file-reader
 Not the same as the book's output... maybe a later version changed things?
 
 
-## write a file to the shared volume using one container:
+### write a file to the shared volume using one container:
 `kubectl exec deploy/sleep -c sleep -- sh -c 'echo ${HOSTNAME} > /data-rw/hostname.txt'`
 
-## read the file using the same container:
+### read the file using the same container:
 `kubectl exec deploy/sleep -c sleep -- cat /data-rw/hostname.txt`
 ```
 sleep-79d7fffc9b-qtvvc
 ```
 
-## read the file using the other container:
+### read the file using the other container:
 `kubectl exec deploy/sleep -c file-reader -- cat /data-ro/hostname.txt`
 ```
 sleep-79d7fffc9b-qtvvc
 ```
 
-## try to add to the file to the read-only container--this will fail:
+### try to add to the file to the read-only container--this will fail:
 `kubectl exec deploy/sleep -c file-reader -- sh -c 'echo more >> /data-ro/hostname.txt'`
 ```
 sh: can't create /data-ro/hostname.txt: Read-only file system
@@ -2345,33 +2348,33 @@ command terminated with exit code 1
 ```
 
 
-## deploy the update:
+### deploy the update:
 `kubectl apply -f sleep/sleep-with-server.yaml`
 ```
 deployment.apps/sleep configured
 ```
 
-## check the Pod status:
+### check the Pod status:
 `kubectl get pods -l app=sleep`
 ```
 NAME                     READY   STATUS    RESTARTS   AGE
 sleep-58f748595f-qvcpz   2/2     Running   0          11s
 ```
 
-## list the container names in the new Pod:
+### list the container names in the new Pod:
 `kubectl get pod -l app=sleep -o jsonpath='{.items[0].status.containerStatuses[*].name}'`
 ```
 server sleep
 ```
 
-## make a network call between the containers:
+### make a network call between the containers:
 `kubectl exec deploy/sleep -c sleep -- wget -q -O - localhost:8080`
 ```
 kiamol
 ```
 Out of curiosity, I tried `kubectl exec deploy/sleep -c sleep -- wget -q -O - paulkaefer.com/ip/index.php` & it returned the same IP as my local machine.
  
-## check the server container logs:
+### check the server container logs:
 `kubectl logs -l app=sleep -c server`
 ```
 GET / HTTP/1.1
@@ -2380,22 +2383,22 @@ User-Agent: Wget
 Connection: close
 ```
 
-## create a Service targeting the server container port:
+### create a Service targeting the server container port:
 `kubectl expose -f sleep/sleep-with-server.yaml --type LoadBalancer --port 8020 --target-port 8080`
 ```
 service/sleep exposed
 ```
 
-## get the URL for your service:
+### get the URL for your service:
 `kubectl get svc sleep -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:8020'`
 ```
 http://localhost:8020
 ```
 
-## open the URL in your browser
+### open the URL in your browser
 Just says `kiamol`.
 
-## check the server container logs:
+### check the server container logs:
 `kubectl logs -l app=sleep -c server`
 ```
 sec-ch-ua-platform: "macOS"
@@ -2409,29 +2412,29 @@ Accept-Language: en-US,en;q=0.9
 Cookie: .AspNetCore.Antiforgery.9TtSrW0hzOs=CfDJ8HUQ90OKa3NOhBcatrOFhtWBiWNdJyC3aW-tWuALIJWtpQoc1SjuL_e6qT3MfFeGa0N3vysf-2IV9P9vtb3Yn_udCOnVtWgMYQwD2tv8oWS8JXooyphloxoxLBJCZxtApyyC_GXfk-Vggu7S_kYsls8
 ```
 
-## apply the updated spec with the init container:
+### apply the updated spec with the init container:
 `kubectl apply -f sleep/sleep-with-html-server.yaml`
 ```
 deployment.apps/sleep configured
 ```
 
-## check the Pod containers:
+### check the Pod containers:
 `kubectl get pod -l app=sleep -o jsonpath='{.items[0].status.containerStatuses[*].name}'`
 ```
 server sleep
 ```
 
-## check the init containers:
+### check the init containers:
 `kubectl get pod -l app=sleep -o jsonpath='{.items[0].status.initContainerStatuses[*].name}'`
 ```
 init-html
 ```
 
-## check logs from the init container--there are none:
+### check logs from the init container--there are none:
 `kubectl logs -l app=sleep -c init-html`
 No output.
 
-## check that the file is available in the sidecar:
+### check that the file is available in the sidecar:
 `kubectl exec deploy/sleep -c server -- ls -l /data-ro`
 ```
 total 4
@@ -2445,24 +2448,24 @@ I then ran:
 ...and http://localhost:8020/ shows **KIAMOL Ch07**.
 
 
-## run the app, which uses a single config file:
+### run the app, which uses a single config file:
 `kubectl apply -f timecheck/timecheck.yaml`
 ```
 deployment.apps/timecheck created
 ```
 
-## check the container logs--there won’t be any:
+### check the container logs--there won’t be any:
 `kubectl logs -l app=timecheck`
 Nothing.
 
-## check the log file inside the container:
+### check the log file inside the container:
 `kubectl exec deploy/timecheck -- cat /logs/timecheck.log`
 ```
 2023-11-02 15:33:04.615 +00:00 [INF] Environment: DEV; version: 1.0; time check: 15:33.04
 2023-11-02 15:33:09.596 +00:00 [INF] Environment: DEV; version: 1.0; time check: 15:33.09
 ```
 
-## check the config setup:
+### check the config setup:
 `kubectl exec deploy/timecheck -- cat /config/appsettings.json`
 ```
 {
@@ -2481,20 +2484,20 @@ Nothing.
 ```
 
 
-## apply the ConfigMap and the new Deployment spec:
+### apply the ConfigMap and the new Deployment spec:
 `kubectl apply -f timecheck/timecheck-configMap.yaml -f timecheck/timecheck-with-config.yaml`
 ```
 configmap/timecheck-config created
 deployment.apps/timecheck configured
 ```
 
-## wait for the containers to start:
+### wait for the containers to start:
 `kubectl wait --for=condition=ContainersReady pod -l app=timecheck,version=v2`
 ```
 pod/timecheck-68696c9766-hdmlm condition met
 ```
 
-## check the log file in the new app container:
+### check the log file in the new app container:
 `kubectl exec deploy/timecheck -- cat /logs/timecheck.log`
 ```
 Defaulted container "timecheck" out of: timecheck, init-config (init)
@@ -2502,7 +2505,7 @@ Defaulted container "timecheck" out of: timecheck, init-config (init)
 2023-11-02 15:57:48.519 +00:00 [INF] Environment: TEST; version: 1.1; time check: 15:57.48
 ```
 
-## see the config file built by the init container:
+### see the config file built by the init container:
 `kubectl exec deploy/timecheck -- cat /config/appsettings.json`
 ```
 Defaulted container "timecheck" out of: timecheck, init-config (init)
@@ -2517,32 +2520,32 @@ Defaulted container "timecheck" out of: timecheck, init-config (init)
 }
 ```
 
-## add the sidecar logging container:
+### add the sidecar logging container:
 `kubectl apply -f timecheck/timecheck-with-logging.yaml`
 ```
 deployment.apps/timecheck configured
 ```
 
-## wait for the containers to start:
+### wait for the containers to start:
 `kubectl wait --for=condition=ContainersReady pod -l app=timecheck,version=v3`
 ```
 pod/timecheck-69f5b9ddf6-fmtjz condition met
 ```
 
-## check the Pods:
+### check the Pods:
 `kubectl get pods -l app=timecheck`
 ```
 NAME                         READY   STATUS    RESTARTS   AGE
 timecheck-69f5b9ddf6-fmtjz   2/2     Running   0          16s
 ```
 
-## check the containers in the Pod:
+### check the containers in the Pod:
 `kubectl get pod -l app=timecheck -o jsonpath='{.items[0].status.containerStatuses[*].name}'`
 ```
 logger timecheck
 ```
 
-## now you can see the app logs in the Pod:
+### now you can see the app logs in the Pod:
 `kubectl logs -l app=timecheck -c logger`
 ```
 2023-11-02 16:05:59.781 +00:00 [INF] Environment: TEST; version: 1.1; time check: 16:05.59
@@ -2555,31 +2558,31 @@ logger timecheck
 ```
 
 
-## apply the update:
+### apply the update:
 `kubectl apply -f timecheck/timecheck-good-citizen.yaml`
 ```
 deployment.apps/timecheck configured
 ```
 
-## wait for all the containers to be ready:
+### wait for all the containers to be ready:
 `kubectl wait --for=condition=ContainersReady pod -l app=timecheck,version=v4`
 ```
 pod/timecheck-9b5654bdd-552rn condition met
 ```
 
-## check the running containers:
+### check the running containers:
 `kubectl get pod -l app=timecheck -o jsonpath='{.items[0].status.containerStatuses[*].name}'`
 ```
 logger timecheck
 ```
 
-## use the sleep container to check the timecheck app health:
+### use the sleep container to check the timecheck app health:
 `kubectl exec deploy/sleep -c sleep -- wget -q -O - http://timecheck:8080`
 ```
 {"status": "OK"}
 ```
 
-## check its metrics:
+### check its metrics:
 `kubectl exec deploy/sleep -c sleep -- wget -q -O - http://timecheck:8081`
 ```
 # HELP timechecks_total The total number timechecks.
@@ -2589,7 +2592,7 @@ timechecks_total 6
 
 # Section 7.4: Abstracting connections with ambassador containers
 
-## deploy the app and Services:
+### deploy the app and Services:
 `kubectl apply -f numbers/`
 ```
 service/numbers-api created
@@ -2598,16 +2601,16 @@ service/numbers-web created
 deployment.apps/numbers-web created
 ```
 
-## find the URL for your app:
+### find the URL for your app:
 `kubectl get svc numbers-web -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:8090'`
 ```
 http://localhost:8090
 ```
 
-## browse and get yourself a nice random number
+### browse and get yourself a nice random number
 Here it is: 44
 
-## check that the web app has access to other endpoints:
+### check that the web app has access to other endpoints:
 `kubectl exec deploy/numbers-web -c web -- wget -q -O - http://timecheck:8080`
 ```
 {"status": "OK"}
@@ -2615,13 +2618,13 @@ Here it is: 44
 Ooh, I see. The numbers app is accesing the timecheck app.
 
 
-## apply the update from listing 7.5:
+### apply the update from listing 7.5:
 `kubectl apply -f numbers/update/web-with-proxy.yaml`
 ```
 deployment.apps/numbers-web configured
 ```
 
-## refresh your browser, and get a new number
+### refresh your browser, and get a new number
 Loading SUPER slowly... Eventually timed out with:
 ```
 KIAMOL Random Number Generator
@@ -2630,17 +2633,17 @@ RNG service unavailable!
 (Using API at: http://localhost/api)
 ```
 
-## check the proxy container logs:
+### check the proxy container logs:
 `kubectl logs -l app=numbers-web -c proxy`
 ```
 ** Logging proxy listening on port: 1080 **
 ```
 
-## try to read the health of the timecheck app:
+### try to read the health of the timecheck app:
 `kubectl exec deploy/numbers-web -c web -- wget -q -O - http://timecheck:8080`
 Stalled for over a minute. Killed it.
 
-## check proxy logs again:
+### check proxy logs again:
 `kubectl logs -l app=numbers-web -c proxy`
 ```
 ** Logging proxy listening on port: 1080 **
@@ -2648,13 +2651,13 @@ Stalled for over a minute. Killed it.
 
 # Section 7.5: Understanding the Pod environment
 
-## apply the update:
+### apply the update:
 `kubectl apply -f numbers/update/web-v2-broken-init-container.yaml`
 ```
 deployment.apps/numbers-web configured
 ```
 
-## check the new Pod:
+### check the new Pod:
 `kubectl get po -l app=numbers-web,version=v2`
 ```
 NAME                          READY   STATUS                  RESTARTS     AGE
@@ -2667,20 +2670,20 @@ NAME                          READY   STATUS                  RESTARTS      AGE
 numbers-web-676948668-ls6kl   0/2     Init:CrashLoopBackOff   2 (14s ago)   29s
 ```
 
-## check the logs for the new init container:
+### check the logs for the new init container:
 `kubectl logs -l app=numbers-web,version=v2 -c init-version`
 ```
 sh: can't create /config-out/version.txt: Read-only file system
 ```
 
-## check the status of the Deployment:
+### check the status of the Deployment:
 `kubectl get deploy numbers-web`
 ```
 NAME          READY   UP-TO-DATE   AVAILABLE   AGE
 numbers-web   1/1     1            1           19m
 ```
 
-## check the status of the ReplicaSets:
+### check the status of the ReplicaSets:
 `kubectl get rs -l app=numbers-web`
 ```
 NAME                     DESIRED   CURRENT   READY   AGE
@@ -2690,7 +2693,7 @@ numbers-web-865c56b9d    0         0         0       19m
 ```
 
 
-## check the processes in the current container:
+### check the processes in the current container:
 `kubectl exec deploy/sleep -c sleep -- ps`
 ```
 PID   USER     TIME  COMMAND
@@ -2700,19 +2703,19 @@ PID   USER     TIME  COMMAND
    55 root      0:00 ps
 ```
 
-## apply the update:
+### apply the update:
 `kubectl apply -f sleep/sleep-with-server-shared.yaml`
 ```
 deployment.apps/sleep configured
 ```
 
-## wait for the new containers:
+### wait for the new containers:
 `kubectl wait --for=condition=ContainersReady pod -l app=sleep,version=shared`
 ```
 pod/sleep-7d79bb59bc-65g9m condition met
 ```
 
-## check the processes again:
+### check the processes again:
 `kubectl exec deploy/sleep -c sleep -- ps`
 ```
 PID   USER     TIME  COMMAND
@@ -2893,4 +2896,31 @@ in: 16 ms.
 from: pi-web-68b64b6b97-j4ctq
 3.141592653589793238462643383279502884197169399375105820974944592307816406286208998628034825342117067982148086513282306647093844609550582231725359408128481117450284102701938521105559644622948954930381964428810975665933446128475648233786783165271201909145648566923460348610454326648213393607260249141273724587006606315588174881520920962829254091715364367892590360011330530548820466521384146951941511609433057270365759591953092186117381932611793105118548074462379962749567351885752724891227938183011949129833673362440656643086021394946395224737190702179860943702770539217176293176752384674818467669405132000568127145263560827785771342757789609173637178721468440901224953430146549585371050792279689258923542019956112129021960864034418159813629774771309960518707211349999998372978049951059731732816096318595024459455346908302642522308253344685035261931188171010003137838752886587533208381420617177669147303598253490428755468731159562863882353787593751957781857780532171226806613001927876611195909216420198938095257201065485863278865936153381827968230301952035301852968995773622599413891249721775283479131515574857242454150695950829533116861727855889075098381754637464939319255060400927701671139009848824012858361603563707660104710181942955596198946767837449448255379774726847104047534646208046684259069491293313677028989152104752162056966024058038150193511253382430035587640247496473263914199272604269922796782354781636009341721641219924586315030286182974555706749838505494588586926995690927210797509302955321165344987202755960236480665499119881834797753566369807426542527862551818417574672890977772793800081647060016145249192173217214772350141441973568548161361157352552133475741849468438523323907394143334547762416862518983569485562099219222184272550254256887671790494601653466804988627232791786085784383827967976681454100953883786360950680064225125205117392984896084128488626945604241965285022210661186306744278622039194945047123713786960956364371917287467764657573962413890865832645995813390478027590099465764078951269468398352595709825822620522489407726719478268482601476990902640136394437455305068203496252451749399651431429809190659250937221696461515709858387410597885959772975498930161753928468138268683868942774155991855925245953959431049972524680845987273644695848653836736222626099124608051243884390451244136549762780797715691435997700129616089441694868555848406353422072225828488648158456028506016842739452267467678895252138522549954666727823986456596116354886230577456498035593634568174324112515076069479451096596
 ```
+
+# Chapter 8: Running data-heavy apps with StatefulSets and Jobs
+
+## Section 8.1: How Kubernetes models stability with StatefulSets
+
+### switch to the chapter's source:
+`cd ch08`
+
+### deploy the StatefulSet, Service, and a Secret for the Postgres password:
+`kubectl apply -f todo-list/db/`
+First got:
+```
+The connection to the server kubernetes.docker.internal:6443 was refused - did you specify the right host or port?
+```
+...so I launched Docker Desktop.
+ 
+### check the StatefulSet:
+kubectl get statefulset todo-db
+ 
+### check the Pods:
+kubectl get pods -l app=todo-db
+ 
+### find the hostname of Pod 0:
+kubectl exec pod/todo-db-0 -- hostname
+ 
+### check the logs of Pod 1:
+kubectl logs todo-db-1 --tail 1
 
