@@ -50,7 +50,7 @@ This is code and output from examples in the book.
  
 ### when you’re done press ctrl-c to end the port forward
 
-# 2.2 Running Pods with controllers
+## Section 2.2: Running Pods with controllers
 
 ### create a Deployment called "hello-kiamol-2", running the same web app:
 `kubectl create deployment hello-kiamol-2 --image=kiamol/ch02-hello-kiamol`
