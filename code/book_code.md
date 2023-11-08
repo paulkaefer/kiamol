@@ -3293,7 +3293,29 @@ Defaulted container "pi" out of: pi, init-dp (init)
 
 This second output has 4601, 32675, and 12136 digits.
 
+Just for "funzies" I copied random portions (up to 13161 characters) off https://paulkaefer.com/pi and found matches above.
 
+### deploy the CronJob and target PVC for backup files:
+`kubectl apply -f todo-list/db/backup/`
+Got:
+```
+error: resource mapping not found for name: "todo-db-backup" namespace: "" from "todo-list/db/backup/todo-db-backup-cronjob.yaml": no matches for kind "CronJob" in version "batch/v1beta1"
+ensure CRDs are installed first
+```
+Tried selectinvely running commands from earlier in the chapter, to no avail. Tried restarting Kube cluster via Docker Desktop, too.
+
+### wait for the Job to run--this is a good time to make tea:
+`sleep 150`
+Skipping this & the next few...
+
+### check the CronJob status:
+`kubectl get cronjob todo-db-backup`
+
+### now run a sleep Pod that mounts the backup PVC:
+`kubectl apply -f sleep/sleep-with-db-backup-mount.yaml`
+
+### check if the CronJob Pod created the backup:
+`kubectl exec deploy/sleep -- ls -l /backup`
 
 
 
