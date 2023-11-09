@@ -45,6 +45,8 @@ Still not fully understanding, but https://en.wikipedia.org/wiki/Kubernetes#Daem
 ## Chapter 8
 * "Kubernetes is a dynamic environment, and data-heavy apps typically expect to run in a stable environment."
   * Makes sense. In my work, we certainly have data-heavy processes... I'm excited to read to see if there are options or suggestions.
+* "Figure 8.17 Yikes! And this is a simplification that doesn’t show volumes or init containers."
+  * ...but it does show volumes!
 
 ## Once complete:
 - [ ] consider a certification. See page 8 for some info

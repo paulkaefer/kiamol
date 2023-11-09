@@ -3328,8 +3328,54 @@ total 0
 
 ## Section 8.5: Choosing your platform for stateful apps
 
+### delete all the owning objects:
+`kubectl delete all -l kiamol=ch08`
+```
+deployment.apps "sleep" deleted
+```
 
+### delete the PVCs
+`kubectl delete pvc -l kiamol=ch08`
+```
+persistentvolumeclaim "todo-db-backup-pvc" deleted
 
+λ kubectl get all
+NAME                 TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)   AGE
+service/kubernetes   ClusterIP   10.96.0.1    <none>        443/TCP   19h
+```
 
+## Section 8.6: Lab
 
+`kubectl apply -f lab/nginx/`
+```
+service/nginx created
+pod/nginx created
+```
+
+`kubectl get svc nginx -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:8088'`
+http://localhost:8088
+* "If you see this page, the nginx web server is successfully installed and working. Further configuration is required."
+
+`kubectl apply -f lab/solution/nginx-statefulset.yaml`
+```
+service/nginx configured
+statefulset.apps/nginx-stateful created
+```
+
+`kubectl apply -f lab/solution/disk-calc-job.yaml`
+```
+job.batch/disk-calc created
+```
+
+`kubectl logs -l job-name=disk-calc`
+```
+0 /nginx0/access.log
+4.0K  /nginx1/access.log
+4.0K  /nginx2/access.log
+```
+
+Based on book code, but adapted from [here](https://stackoverflow.com/questions/12409519/curl-command-to-repeat-url-request):
+```bash
+for i in `seq 1 100`; do curl http://localhost:8088 > /dev/null; done
+```
 
