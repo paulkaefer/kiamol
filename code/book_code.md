@@ -3306,16 +3306,30 @@ Tried selectinvely running commands from earlier in the chapter, to no avail. Tr
 
 ### wait for the Job to run--this is a good time to make tea:
 `sleep 150`
-Skipping this & the next few...
 
 ### check the CronJob status:
 `kubectl get cronjob todo-db-backup`
+```
+Error from server (NotFound): cronjobs.batch "todo-db-backup" not found
+```
 
 ### now run a sleep Pod that mounts the backup PVC:
 `kubectl apply -f sleep/sleep-with-db-backup-mount.yaml`
+```
+deployment.apps/sleep created
+```
 
 ### check if the CronJob Pod created the backup:
 `kubectl exec deploy/sleep -- ls -l /backup`
+```
+total 0
+```
+
+
+## Section 8.5: Choosing your platform for stateful apps
+
+
+
 
 
 
