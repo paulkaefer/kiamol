@@ -48,6 +48,15 @@ Still not fully understanding, but https://en.wikipedia.org/wiki/Kubernetes#Daem
 * "Figure 8.17 Yikes! And this is a simplification that doesn’t show volumes or init containers."
   * ...but it does show volumes!
 
+## Chapter 9
+* **rollout**: essentially changeset; not due to changes to Deployment, but to anything we do to Pods, whether through config file updates or imperative updates (shown in code).
+* "You need to plan your selectors carefully up front, but you should add whatever labels you need to your Pod spec to make your updates manageable."
+* After the `v3.1` output: "This is the hot reload approach..." (meaning deleting & re-applying?)
+* "`Recreate` is the alternative to the default strategy, `RollingUpdate`."
+  * Not recommended by the author.
+  * `maxUnavailable` and `maxSurge` settings are intuitive; these dictate what % of pods can be unavailable or added, respectively.
+  ![](./attachments/Figure_9-11.jpg)
+
 ## Once complete:
 - [ ] consider a certification. See page 8 for some info
 - [ ] Try *Learn Docker in a Month of Lunches* (per p. xiii)

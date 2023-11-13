@@ -3379,3 +3379,422 @@ Based on book code, but adapted from [here](https://stackoverflow.com/questions/
 for i in `seq 1 100`; do curl http://localhost:8088 > /dev/null; done
 ```
 
+# Chapter 9: Managing app releases with rollouts and rollbacks
+
+## Section 9.1: How Kubernetes manages rollouts
+
+### change to the exercise directory:
+`cd ch09`
+
+### deploy a simple web app:
+`kubectl apply -f vweb/`
+```
+service/vweb created
+deployment.apps/vweb created
+```
+
+### check the ReplicaSets:
+`kubectl get rs -l app=vweb`
+```
+NAME              DESIRED   CURRENT   READY   AGE
+vweb-6bd7464487   2         2         0       0s
+```
+
+### now increase the scale:
+`kubectl apply -f vweb/update/vweb-v1-scale.yaml`
+```
+deployment.apps/vweb configured
+```
+
+### check the ReplicaSets:
+`kubectl get rs -l app=vweb`
+```
+NAME              DESIRED   CURRENT   READY   AGE
+vweb-6bd7464487   3         3         0       0s
+```
+
+### check the deployment history:
+`kubectl rollout history deploy/vweb`
+```
+deployment.apps/vweb 
+REVISION  CHANGE-CAUSE
+1         <none>
+```
+This would have been interesting to run in previous chapters!
+
+### update the image for the web app:
+`kubectl set image deployment/vweb web=kiamol/ch09-vweb:v2`
+```
+deployment.apps/vweb image updated
+```
+
+### check the ReplicaSets again:
+`kubectl get rs -l app=vweb`
+```
+NAME              DESIRED   CURRENT   READY   AGE
+vweb-6bd7464487   0         0         0       2m
+vweb-7c675fdd96   3         3         3       9s
+```
+
+### check the rollouts:
+`kubectl rollout history deploy/vweb`
+```
+deployment.apps/vweb 
+REVISION  CHANGE-CAUSE
+1         <none>
+2         <none>
+```
+Hopefully they will talk about change-causes.
+
+## Section 9.2: Updating Deployments with rollouts and rollbacks
+
+### apply the change using the record flag:
+`kubectl apply -f vweb/update/vweb-v11.yaml --record`
+```
+Flag --record has been deprecated, --record will be removed in the future
+deployment.apps/vweb configured
+```
+
+### check the ReplicaSets and their labels:
+`kubectl get rs -l app=vweb --show-labels`
+```
+NAME              DESIRED   CURRENT   READY   AGE     LABELS
+vweb-6bd7464487   0         0         0       4m17s   app=vweb,pod-template-hash=6bd7464487,version=v1
+vweb-7c675fdd96   0         0         0       2m26s   app=vweb,pod-template-hash=7c675fdd96,version=v1
+vweb-7f67d94964   3         3         3       10s     app=vweb,pod-template-hash=7f67d94964,version=v1.1
+```
+
+### check the current rollout status:
+`kubectl rollout status deploy/vweb`
+```
+deployment "vweb" successfully rolled out
+```
+
+### check the rollout history:
+`kubectl rollout history deploy/vweb`
+```
+deployment.apps/vweb 
+REVISION  CHANGE-CAUSE
+1         <none>
+2         <none>
+3         kubectl apply --filename=vweb/update/vweb-v11.yaml --record=true
+```
+
+### show the rollout revision for the ReplicaSets:
+`kubectl get rs -l app=vweb -o=custom-columns=NAME:.metadata.name,REPLICAS:.status.replicas,REVISION:.metadata.annotations.deployment\.kubernetes\.io/revision`
+```
+NAME              REPLICAS   REVISION
+vweb-6bd7464487   0          <none>
+vweb-7c675fdd96   0          <none>
+vweb-7f67d94964   3          <none>
+```
+
+### we’ll use the app URL a lot, so save it to a local file:
+`kubectl get svc vweb -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:8090/v.txt' > url.txt`
+
+### then use the contents of the file to make an HTTP request:
+`curl $(cat url.txt)`
+```bash
+paulkaefer ~/GitHub/kiamol/ch09 λ curl $(cat url.txt)
+v1
+Mon Nov 13 11:04:52
+~/GitHub/kiamol/ch09
+paulkaefer ~/GitHub/kiamol/ch09 λ cat url.txt 
+http://localhost:8090/v.txt
+```
+
+### deploy the v2 update:
+`kubectl apply -f vweb/update/vweb-v2.yaml --record`
+```
+Flag --record has been deprecated, --record will be removed in the future
+deployment.apps/vweb configured
+```
+
+### check the response again:
+`curl $(cat url.txt)`
+```
+v2
+```
+
+### check the ReplicaSet details:
+`kubectl get rs -l app=vweb --show-labels`
+```
+NAME              DESIRED   CURRENT   READY   AGE     LABELS
+vweb-675f546687   3         3         3       22s     app=vweb,pod-template-hash=675f546687,version=v2
+vweb-6bd7464487   0         0         0       12m     app=vweb,pod-template-hash=6bd7464487,version=v1
+vweb-7c675fdd96   0         0         0       10m     app=vweb,pod-template-hash=7c675fdd96,version=v1
+vweb-7f67d94964   0         0         0       7m58s   app=vweb,pod-template-hash=7f67d94964,version=v1.1
+```
+
+### look at the revisions:
+`kubectl rollout history deploy/vweb`
+Hah -- Ran this just a minute ago because I was curious!
+```
+λ kubectl rollout history deploy/vweb
+deployment.apps/vweb 
+REVISION  CHANGE-CAUSE
+1         <none>
+2         <none>
+3         kubectl apply --filename=vweb/update/vweb-v11.yaml --record=true
+4         kubectl apply --filename=vweb/update/vweb-v2.yaml --record=true
+```
+
+### list ReplicaSets with their revisions:
+`kubectl get rs -l app=vweb -o=custom-columns=NAME:.metadata.name,REPLICAS:.status.replicas,VERSION:.metadata.labels.version,REVISION:.metadata.annotations.deployment\.kubernetes\.io/revision`
+```
+NAME              REPLICAS   VERSION   REVISION
+vweb-675f546687   3          v2        <none>
+vweb-6bd7464487   0          v1        <none>
+vweb-7c675fdd96   0          v1        <none>
+vweb-7f67d94964   0          v1.1      <none>
+```
+
+### see what would happen with a rollback:
+`kubectl rollout undo deploy/vweb --dry-run`
+```
+W1113 11:08:23.984322    5303 helpers.go:692] --dry-run is deprecated and can be replaced with --dry-run=client.
+deployment.apps/vweb Pod Template:
+  Labels: app=vweb
+  pod-template-hash=7f67d94964
+  version=v1.1
+  Containers:
+   web:
+    Image:  kiamol/ch09-vweb:v1
+    Port: 80/TCP
+    Host Port:  0/TCP
+    Environment:  <none>
+    Mounts: <none>
+  Volumes:  <none>
+ (dry run)
+```
+
+### then start a rollback to revision 2:
+`kubectl rollout undo deploy/vweb --to-revision=2`
+```
+deployment.apps/vweb rolled back
+```
+
+### check the app--this should surprise you:
+`curl $(cat url.txt)`
+```
+v2
+```
+It does surprise me.
+
+
+### remove the existing app:
+`kubectl delete deploy vweb`
+```
+deployment.apps "vweb" deleted
+```
+
+### deploy a new version that stores content in config:
+`kubectl apply -f vweb/update/vweb-v3-with-configMap.yaml --record`
+```
+Flag --record has been deprecated, --record will be removed in the future
+configmap/vweb-config created
+deployment.apps/vweb created
+```
+
+### check the response:
+`curl $(cat url.txt)`
+```
+v3-from-config
+```
+
+### update the ConfigMap, and wait for the change to propagate:
+`kubectl apply -f vweb/update/vweb-configMap-v31.yaml --record`
+```
+Flag --record has been deprecated, --record will be removed in the future
+configmap/vweb-config configured
+```
+`sleep 120`
+
+### check the app again:
+`curl $(cat url.txt)`
+```
+v3.1
+```
+
+### check the rollout history:
+`kubectl rollout history deploy/vweb`
+```
+deployment.apps/vweb 
+REVISION  CHANGE-CAUSE
+1         kubectl apply --filename=vweb/update/vweb-v3-with-configMap.yaml --record=true
+```
+
+Deploy a new version of the app with an immutable config, so you can compare the release process:
+### remove the old Deployment:
+`kubectl delete deploy vweb`
+```
+deployment.apps "vweb" deleted
+```
+
+### create a new Deployment using an immutable config:
+`kubectl apply -f vweb/update/vweb-v4-with-configMap.yaml --record`
+```
+Flag --record has been deprecated, --record will be removed in the future
+configmap/vweb-config-v4 created
+deployment.apps/vweb created
+```
+
+### check the output:
+`curl $(cat url.txt)`
+```
+v4-from-config
+```
+
+### release a new ConfigMap and updated Deployment:
+`kubectl apply -f vweb/update/vweb-v41-with-configMap.yaml --record`
+```
+Flag --record has been deprecated, --record will be removed in the future
+configmap/vweb-config-v41 created
+deployment.apps/vweb configured
+```
+
+### check the output again:
+`curl $(cat url.txt)`
+```
+v4.1-from-config
+```
+
+### the update is a full rollout:
+`kubectl rollout history deploy/vweb`
+```
+deployment.apps/vweb 
+REVISION  CHANGE-CAUSE
+1         kubectl apply --filename=vweb/update/vweb-v4-with-configMap.yaml --record=true
+2         kubectl apply --filename=vweb/update/vweb-v41-with-configMap.yaml --record=true
+```
+This is helpful to compare, too:
+```
+λ diff vweb/update/vweb-v4-with-configMap.yaml vweb/update/vweb-v41-with-configMap.yaml
+4c4
+<   name: vweb-config-v4
+---
+>   name: vweb-config-v41
+9c9
+<     v4-from-config
+---
+>     v4.1-from-config
+26c26
+<         version: v4
+---
+>         version: v4.1
+41c41
+<             name: vweb-config-v4
+---
+>             name: vweb-config-v41
+```
+
+### so you can rollback:
+`kubectl rollout undo deploy/vweb`
+curl $(cat url.txt)
+```
+deployment.apps/vweb rolled back
+v4-from-config
+````
+
+## Section 9.3: Configuring rolling updates for Deployments
+
+### delete the existing app:
+`kubectl delete deploy vweb`
+```
+deployment.apps "vweb" deleted
+```
+
+### deploy with the Recreate strategy:
+`kubectl apply -f vweb-strategies/vweb-recreate-v2.yaml`
+```
+deployment.apps/vweb created
+```
+
+### check the ReplicaSets:
+`kubectl get rs -l app=vweb`
+```
+NAME              DESIRED   CURRENT   READY   AGE
+vweb-675f546687   3         3         3       7s
+```
+
+### test the app:
+`curl $(cat url.txt)`
+```
+v2
+```
+
+### look at the details of the Deployment:
+`kubectl describe deploy vweb`
+```
+Name:               vweb
+Namespace:          default
+CreationTimestamp:  Mon, 13 Nov 2023 11:24:24 -0600
+Labels:             kiamol=ch09
+Annotations:        deployment.kubernetes.io/revision: 1
+Selector:           app=vweb
+Replicas:           3 desired | 3 updated | 3 total | 3 available | 0 unavailable
+StrategyType:       Recreate
+MinReadySeconds:    0
+Pod Template:
+  Labels:  app=vweb
+           version=v2
+  Containers:
+   web:
+    Image:        kiamol/ch09-vweb:v2
+    Port:         80/TCP
+    Host Port:    0/TCP
+    Environment:  <none>
+    Mounts:       <none>
+  Volumes:        <none>
+Conditions:
+  Type           Status  Reason
+  ----           ------  ------
+  Available      True    MinimumReplicasAvailable
+  Progressing    True    NewReplicaSetAvailable
+OldReplicaSets:  <none>
+NewReplicaSet:   vweb-675f546687 (3/3 replicas created)
+Events:
+  Type    Reason             Age   From                   Message
+  ----    ------             ----  ----                   -------
+  Normal  ScalingReplicaSet  22s   deployment-controller  Scaled up replica set vweb-675f546687 to 3
+```
+
+### deploy the updated Pod spec:
+`kubectl apply -f vweb-strategies/vweb-recreate-v3.yaml`
+```
+deployment.apps/vweb configured
+```
+
+### check the status, with a time limit for updates:
+`kubectl rollout status deploy/vweb --timeout=2s`
+```
+Waiting for deployment "vweb" rollout to finish: 0 of 3 updated replicas are available...
+error: timed out waiting for the condition
+```
+
+### check the ReplicaSets:
+`kubectl get rs -l app=vweb`
+```
+NAME              DESIRED   CURRENT   READY   AGE
+vweb-675f546687   0         0         0       2m24s
+vweb-7cbbbdf58c   3         3         0       23s
+```
+
+### check the Pods:
+`kubectl get pods -l app=vweb`
+```
+NAME                    READY   STATUS   RESTARTS      AGE
+vweb-7cbbbdf58c-c6lkc   0/1     Error    2 (23s ago)   30s
+vweb-7cbbbdf58c-cv5lp   0/1     Error    2 (22s ago)   30s
+vweb-7cbbbdf58c-g7tzv   0/1     Error    2 (25s ago)   30s
+```
+
+### test the app-this will fail:
+`curl $(cat url.txt)`
+```
+curl: (52) Empty reply from server
+```
+I don't think I've seen that `curl` error before!
+
+
+
