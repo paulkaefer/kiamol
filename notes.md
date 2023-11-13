@@ -59,7 +59,11 @@ Still not fully understanding, but https://en.wikipedia.org/wiki/Kubernetes#Daem
 * "Deployments are the controllers you use the most."
 * Section 9.5 talks about blue/green deployments. Neat how you can just "flip a switch" to choose which version is active. Both can be running, but the active one gets the traffic.
 
+## Chapter 10
+[bookmark](https://learning.oreilly.com/library/view/learn-kubernetes-in/9781617297984/OEBPS/Text/10.htm#heading_id_3)
+
 ## Once complete:
+- [ ] read https://en.wikipedia.org/wiki/Kubernetes
 - [ ] consider a certification. See page 8 for some info
 - [ ] Try *Learn Docker in a Month of Lunches* (per p. xiii)
   - [ ] explore some of the docker images from this book in more detail, like [this one](https://hub.docker.com/r/kiamol/ch03-sleep)
