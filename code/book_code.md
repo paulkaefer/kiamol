@@ -3796,5 +3796,384 @@ curl: (52) Empty reply from server
 ```
 I don't think I've seen that `curl` error before!
 
+### update the Deployment to use rolling updates and the v2 image:
+`kubectl apply -f vweb-strategies/vweb-rollingUpdate-v2.yaml`
+```
+deployment.apps/vweb configured
+```
+
+### check the Pods for the app:
+`kubectl get po -l app=vweb`
+```
+NAME                    READY   STATUS    RESTARTS   AGE
+vweb-675f546687-dt2bv   1/1     Running   0          7s
+vweb-675f546687-hjskd   1/1     Running   0          6s
+vweb-675f546687-hsrb2   1/1     Running   0          5s
+```
+
+### check the rollout status:
+`kubectl rollout status deploy/vweb`
+```
+deployment "vweb" successfully rolled out
+```
+
+### check the ReplicaSets:
+`kubectl get rs -l app=vweb`
+```
+NAME              DESIRED   CURRENT   READY   AGE
+vweb-675f546687   3         3         3       10m
+vweb-7cbbbdf58c   0         0         0       8m26s
+```
+
+### test the app:
+`curl $(cat url.txt)`
+```
+v2
+```
+I wasn't fast enough to catch what the author illustrates in Figure 9.12, but I get it.
 
 
+### update to the failing container image:
+`kubectl apply -f vweb-strategies/vweb-rollingUpdate-v3.yaml`
+```
+deployment.apps/vweb configured
+```
+
+### check the Pods:
+`kubectl get po -l app=vweb`
+```
+Mon Nov 13 11:37:04
+NAME                    READY   STATUS    RESTARTS     AGE
+vweb-675f546687-hjskd   1/1     Running   0            2m42s
+vweb-675f546687-hsrb2   1/1     Running   0            2m41s
+vweb-7cbbbdf58c-gclnr   0/1     Error     1 (6s ago)   7s
+vweb-7cbbbdf58c-lbcqg   0/1     Error     1 (6s ago)   7s
+
+Mon Nov 13 11:37:11
+~/GitHub/kiamol/ch09
+paulkaefer ~/GitHub/kiamol/ch09 λ kubectl get po -l app=vweb
+NAME                    READY   STATUS    RESTARTS      AGE
+vweb-675f546687-hjskd   1/1     Running   0             2m49s
+vweb-675f546687-hsrb2   1/1     Running   0             2m48s
+vweb-7cbbbdf58c-gclnr   0/1     Error     1 (13s ago)   14s
+vweb-7cbbbdf58c-lbcqg   0/1     Error     2 (13s ago)   14s
+
+(re-ran the command a few times)
+
+Mon Nov 13 11:37:28
+~/GitHub/kiamol/ch09
+paulkaefer ~/GitHub/kiamol/ch09 λ kubectl get po -l app=vweb
+NAME                    READY   STATUS    RESTARTS      AGE
+vweb-675f546687-hjskd   1/1     Running   0             3m
+vweb-675f546687-hsrb2   1/1     Running   0             2m59s
+vweb-7cbbbdf58c-gclnr   0/1     Error     2 (24s ago)   25s
+vweb-7cbbbdf58c-lbcqg   0/1     Error     2 (24s ago)   25s
+
+Mon Nov 13 11:37:29
+~/GitHub/kiamol/ch09
+paulkaefer ~/GitHub/kiamol/ch09 λ kubectl get po -l app=vweb
+NAME                    READY   STATUS             RESTARTS      AGE
+vweb-675f546687-hjskd   1/1     Running            0             3m4s
+vweb-675f546687-hsrb2   1/1     Running            0             3m3s
+vweb-7cbbbdf58c-gclnr   0/1     CrashLoopBackOff   2 (14s ago)   29s
+vweb-7cbbbdf58c-lbcqg   0/1     CrashLoopBackOff   2 (16s ago)   29s
+
+λ kubectl get po -l app=vweb
+NAME                    READY   STATUS             RESTARTS      AGE
+vweb-675f546687-hjskd   1/1     Running            0             3m44s
+vweb-675f546687-hsrb2   1/1     Running            0             3m43s
+vweb-7cbbbdf58c-gclnr   0/1     CrashLoopBackOff   3 (29s ago)   69s
+vweb-7cbbbdf58c-lbcqg   0/1     CrashLoopBackOff   3 (30s ago)   69s
+
+Mon Nov 13 11:38:13
+
+```
+
+### check the rollout:
+`kubectl rollout status deploy/vweb`
+```
+Waiting for deployment "vweb" rollout to finish: 2 out of 3 new replicas have been updated...
+error: deployment "vweb" exceeded its progress deadline
+```
+
+### see the scale in the ReplicaSets:
+`kubectl get rs -l app=vweb`
+```
+NAME              DESIRED   CURRENT   READY   AGE
+vweb-675f546687   2         2         2       15m
+vweb-7cbbbdf58c   2         2         0       13m
+```
+
+### test the app:
+`curl $(cat url.txt)`
+```
+v2
+```
+
+Ran this again:
+```
+Mon Nov 13 11:39:55
+~/GitHub/kiamol/ch09
+paulkaefer ~/GitHub/kiamol/ch09 λ kubectl get po -l app=vweb
+NAME                    READY   STATUS             RESTARTS      AGE
+vweb-675f546687-hjskd   1/1     Running            0             5m37s
+vweb-675f546687-hsrb2   1/1     Running            0             5m36s
+vweb-7cbbbdf58c-gclnr   0/1     CrashLoopBackOff   5 (17s ago)   3m2s
+vweb-7cbbbdf58c-lbcqg   0/1     Error              5 (91s ago)   3m2s
+```
+
+## Section 9.4: Rolling updates in DaemonSets and StatefulSets
+
+### remove all of this chapter’s apps:
+`kubectl delete all -l kiamol=ch09`
+```
+service "vweb" deleted
+deployment.apps "vweb" deleted
+```
+
+### deploy the to-do app, database, and proxy:
+`kubectl apply -f todo-list/db/ -f todo-list/web/ -f todo-list/proxy/`
+```
+configmap/todo-db-config created
+configmap/todo-db-env created
+configmap/todo-db-scripts created
+secret/todo-db-secret created
+service/todo-db created
+statefulset.apps/todo-db created
+configmap/todo-web-config created
+secret/todo-web-secret created
+service/todo-web created
+deployment.apps/todo-web created
+configmap/todo-proxy-configmap created
+service/todo-proxy created
+daemonset.apps/todo-proxy created
+```
+
+### get the app URL:
+`kubectl get svc todo-proxy -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:8091'`
+```
+http://localhost:8091
+```
+
+### browse to the app, add an item, and check that it’s in the list
+Still doesn't work for me.
+
+# deploy the DaemonSet update:
+kubectl apply -f todo-list/proxy/update/nginx-rollingUpdate.yaml
+
+# watch the Pod update:
+kubectl get po -l app=todo-proxy --watch
+```
+NAME               READY   STATUS        RESTARTS   AGE
+todo-proxy-qcrr6   1/1     Terminating   0          66s
+todo-proxy-qcrr6   0/1     Terminating   0          66s
+todo-proxy-bjtfd   0/1     Pending       0          0s
+todo-proxy-bjtfd   0/1     Pending       0          0s
+todo-proxy-bjtfd   0/1     ContainerCreating   0          0s
+todo-proxy-qcrr6   0/1     Terminating         0          67s
+todo-proxy-qcrr6   0/1     Terminating         0          67s
+todo-proxy-bjtfd   1/1     Running             0          6s
+```
+
+# Press ctrl-c when the update completes
+Ah cool. Ctrl-c'd and tried again:
+```
+λ kubectl get po -l app=todo-proxy --watch
+NAME               READY   STATUS    RESTARTS   AGE
+todo-proxy-bjtfd   1/1     Running   0          44s
+```
+This does seem super useful & interesting for logging.
+
+### deploy the update:
+`kubectl apply -f todo-list/db/update/todo-db-rollingUpdate-partition.yaml`
+```
+statefulset.apps/todo-db configured
+```
+
+### check the rollout status:
+`kubectl rollout status statefulset/todo-db`
+```
+Waiting for partitioned roll out to finish: 0 out of 1 new pods have been updated...
+Waiting for 1 pods to be ready...
+Waiting for 1 pods to be ready...
+Waiting for 1 pods to be ready...
+Waiting for 1 pods to be ready...
+partitioned roll out complete: 1 new pods have been updated...
+```
+
+### list the Pods, showing the image name and start time:
+`kubectl get pods -l app=todo-db -o=custom-columns=NAME:.metadata.name,IMAGE:.spec.containers[0].image,START_TIME:.status.startTime`
+```
+NAME        IMAGE                  START_TIME
+todo-db-0   postgres:11.6-alpine   2023-11-13T17:51:01Z
+todo-db-1   postgres:11.8-alpine   2023-11-13T18:05:37Z
+```
+
+### switch the web app to read-only mode, so it uses the secondary database:
+`kubectl apply -f todo-list/web/update/todo-web-readonly.yaml`
+```
+deployment.apps/todo-web configured
+```
+
+### test the app--the data is there, but now it’s read-only
+This app still doesn't let me add to the list, so I see an empty list.
+
+
+### apply the update:
+`kubectl apply -f todo-list/db/update/todo-db-rollingUpdate.yaml`
+```
+statefulset.apps/todo-db configured
+```
+
+### check its progress:
+`kubectl rollout status statefulset/todo-db`
+```
+waiting for statefulset rolling update to complete 1 pods at revision todo-db-d77d4cdc5...
+Waiting for 1 pods to be ready...
+Waiting for 1 pods to be ready...
+Waiting for 1 pods to be ready...
+Waiting for 1 pods to be ready...
+statefulset rolling update complete 2 pods at revision todo-db-d77d4cdc5...
+```
+
+### Pods should now all have the same spec:
+`kubectl get pods -l app=todo-db -o=custom-columns=NAME:.metadata.name,IMAGE:.spec.containers[0].image,START_TIME:.status.startTime`
+```
+NAME        IMAGE                  START_TIME
+todo-db-0   postgres:11.8-alpine   2023-11-13T18:09:02Z
+todo-db-1   postgres:11.8-alpine   2023-11-13T18:05:37Z
+```
+
+### reset the web app back to read-write mode:
+`kubectl apply -f todo-list/web/todo-web.yaml`
+```
+deployment.apps/todo-web configured
+```
+
+### test that the app works and is connected to the updated primary Pod
+Adding items still doesn't work for me.
+The diagnostics page:
+```
+Hostname  .NET Version  OS Architecture OS Description
+todo-web-5d57859767-xzlns .NET 6.0.8  Arm64 Linux 6.4.16-linuxkit #1 SMP PREEMPT Wed Oct 25 16:32:24 UTC 2023
+```
+
+## Section 9.5: Understanding release strategies
+
+### Cleanup
+```
+λ kubectl get all
+NAME                            READY   STATUS      RESTARTS        AGE
+pod/disk-calc-szgxt             0/1     Completed   0               4d3h
+pod/nginx                       1/1     Running     1 (2d21h ago)   4d3h
+pod/nginx-stateful-0            1/1     Running     1 (2d21h ago)   4d3h
+pod/nginx-stateful-1            1/1     Running     1 (2d21h ago)   4d3h
+pod/nginx-stateful-2            1/1     Running     1 (2d21h ago)   4d3h
+pod/todo-db-0                   1/1     Running     0               4m31s
+pod/todo-db-1                   1/1     Running     0               7m56s
+pod/todo-proxy-bjtfd            1/1     Running     0               21m
+pod/todo-web-5d57859767-xzlns   1/1     Running     0               3m57s
+
+NAME                 TYPE           CLUSTER-IP      EXTERNAL-IP   PORT(S)          AGE
+service/kubernetes   ClusterIP      10.96.0.1       <none>        443/TCP          4d22h
+service/nginx        LoadBalancer   10.104.234.22   localhost     8088:30782/TCP   4d3h
+service/todo-db      ClusterIP      None            <none>        5432/TCP         22m
+service/todo-proxy   LoadBalancer   10.101.26.125   localhost     8091:30942/TCP   22m
+service/todo-web     ClusterIP      10.108.94.221   <none>        80/TCP           22m
+
+NAME                        DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR   AGE
+daemonset.apps/todo-proxy   1         1         1       1            1           <none>          22m
+
+NAME                       READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/todo-web   1/1     1            1           22m
+
+NAME                                  DESIRED   CURRENT   READY   AGE
+replicaset.apps/todo-web-5d57859767   1         1         1       22m
+replicaset.apps/todo-web-7ffcbf8ff9   0         0         0       7m10s
+
+NAME                              READY   AGE
+statefulset.apps/nginx-stateful   3/3     4d3h
+statefulset.apps/todo-db          2/2     22m
+
+NAME                  COMPLETIONS   DURATION   AGE
+job.batch/disk-calc   1/1           4s         4d3h
+
+λ kubectl delete all -l kiamol=ch09
+service "todo-db" deleted
+service "todo-proxy" deleted
+service "todo-web" deleted
+daemonset.apps "todo-proxy" deleted
+deployment.apps "todo-web" deleted
+statefulset.apps "todo-db" deleted
+
+λ kubectl delete cm -l kiamol=ch09
+configmap "todo-db-config" deleted
+configmap "todo-db-env" deleted
+configmap "todo-db-scripts" deleted
+configmap "todo-proxy-configmap" deleted
+configmap "todo-web-config" deleted
+configmap "vweb-config" deleted
+configmap "vweb-config-v4" deleted
+configmap "vweb-config-v41" deleted
+
+λ kubectl delete pvc -l kiamol=ch09
+persistentvolumeclaim "data-todo-db-0" deleted
+persistentvolumeclaim "data-todo-db-1" deleted
+
+λ kubectl get all
+NAME                   READY   STATUS      RESTARTS        AGE
+pod/disk-calc-szgxt    0/1     Completed   0               4d3h
+pod/nginx              1/1     Running     1 (2d21h ago)   4d3h
+pod/nginx-stateful-0   1/1     Running     1 (2d21h ago)   4d3h
+pod/nginx-stateful-1   1/1     Running     1 (2d21h ago)   4d3h
+pod/nginx-stateful-2   1/1     Running     1 (2d21h ago)   4d3h
+
+NAME                 TYPE           CLUSTER-IP      EXTERNAL-IP   PORT(S)          AGE
+service/kubernetes   ClusterIP      10.96.0.1       <none>        443/TCP          4d22h
+service/nginx        LoadBalancer   10.104.234.22   localhost     8088:30782/TCP   4d3h
+
+NAME                              READY   AGE
+statefulset.apps/nginx-stateful   3/3     4d3h
+
+NAME                  COMPLETIONS   DURATION   AGE
+job.batch/disk-calc   1/1           4s         4d3h
+```
+I believe all that's left relates to that dashboard I deployed, from the kubernetes documentation.
+
+
+## Chapter 9 lab
+```
+λ kubectl apply -f lab/v1/
+service/vweb created
+deployment.apps/vweb-v1 created
+
+λ kubectl get svc vweb -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:8090'
+http://localhost:8090
+```
+> v1
+with "fresh air" background
+
+```
+λ kubectl apply -f lab/solution/
+service/vweb configured
+deployment.apps/vweb-v2 created
+```
+
+Now I see v2, with magic mint background.
+
+Switching between the two works, but yeah, Chrome caches the page, so Incognito mode helps~
+```
+# for v1
+kubectl apply -f lab/v1/vweb-service-v1.yaml
+
+# for v2
+kubectl apply -f lab/solution/vweb-service-v2.yaml
+```
+
+### Teardown
+```
+λ kubectl delete all -l kiamol=ch09-lab
+service "vweb" deleted
+deployment.apps "vweb-v1" deleted
+deployment.apps "vweb-v2" deleted
+```

@@ -56,6 +56,8 @@ Still not fully understanding, but https://en.wikipedia.org/wiki/Kubernetes#Daem
   * Not recommended by the author.
   * `maxUnavailable` and `maxSurge` settings are intuitive; these dictate what % of pods can be unavailable or added, respectively.
   ![](./attachments/Figure_9-11.jpg)
+* "Deployments are the controllers you use the most."
+* Section 9.5 talks about blue/green deployments. Neat how you can just "flip a switch" to choose which version is active. Both can be running, but the active one gets the traffic.
 
 ## Once complete:
 - [ ] consider a certification. See page 8 for some info
