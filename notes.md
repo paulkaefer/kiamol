@@ -63,6 +63,10 @@ Still not fully understanding, but https://en.wikipedia.org/wiki/Kubernetes#Daem
 [bookmark](https://learning.oreilly.com/library/view/learn-kubernetes-in/9781617297984/OEBPS/Text/10.htm#heading_id_3)
 * see https://kiamol.net/index.yaml
 * "You should consider Helm charts to be immutable and always publish changes by publishing a new package version."
+* "An application package in Helm is called a *chart*; charts can be developed and deployed locally or published to a *repository*."
+* "How’s this for an example: you can generate a hash from the contents of a ConfigMap template and use that as a label in a Deployment template, so every time the configuration changes, the Deployment label changes too, and upgrading your configuration triggers a Pod rollout."
+* This paragraph was great:
+![](./attachments/section_10.5_vital_paragraph.png)
 
 ## Once complete:
 - [ ] read https://en.wikipedia.org/wiki/Kubernetes
