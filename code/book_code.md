@@ -4177,3 +4177,685 @@ service "vweb" deleted
 deployment.apps "vweb-v1" deleted
 deployment.apps "vweb-v2" deleted
 ```
+
+
+# Chapter 10: Packaging and managing apps with Helm
+## Section 10.1: What Helm adds to Kubernetes
+
+Installing `helm`:
+```bash
+λ brew install helm
+...
+λ helm version
+version.BuildInfo{Version:"v3.13.2", GitCommit:"2a2fb3b98829f1e0be6fb18af2f6599e0f4e8243", GitTreeState:"clean", GoVersion:"go1.21.4"}
+λ helm repo add kiamol https://kiamol.net
+"kiamol" has been added to your repositories
+λ helm repo update
+Hang tight while we grab the latest from your chart repositories...
+...Successfully got an update from the "kiamol" chart repository
+...Successfully got an update from the "airflow-stable" chart repository
+Update Complete. ⎈Happy Helming!⎈
+λ helm search repo vweb --versions
+NAME        CHART VERSION APP VERSION DESCRIPTION             
+kiamol/vweb 2.0.0         2.0.0       Simple versioned web app
+kiamol/vweb 1.0.0         1.0.0       Simple versioned web app
+```
+
+### inspect the default values stored in the chart:
+`helm show values kiamol/vweb --version 1.0.0`
+```
+servicePort: 8090
+replicaCount: 2
+```
+
+### install the chart, overriding the default values:
+`helm install --set servicePort=8010 --set replicaCount=1 ch10-vweb kiamol/vweb --version 1.0.0`
+```
+NAME: ch10-vweb
+LAST DEPLOYED: Wed Nov 15 08:43:54 2023
+NAMESPACE: default
+STATUS: deployed
+REVISION: 1
+TEST SUITE: None
+```
+
+### check the releases you have installed:
+`helm ls`
+```
+NAME      NAMESPACE REVISION  UPDATED                               STATUS    CHART       APP VERSION
+ch10-vweb default   1         2023-11-15 08:43:54.226961 -0600 CST  deployed  vweb-1.0.0  1.0.0  
+```
+
+### show the details of the Deployment:
+`kubectl get deploy -l app.kubernetes.io/instance=ch10-vweb --show-labels`
+```
+NAME        READY   UP-TO-DATE   AVAILABLE   AGE   LABELS
+ch10-vweb   1/1     1            1           87s   app.kubernetes.io/instance=ch10-vweb,app.kubernetes.io/managed-by=Helm,app.kubernetes.io/name=vweb,kiamol=ch10
+```
+
+### update the release to increase the replica count:
+`helm upgrade --set servicePort=8010 --set replicaCount=3 ch10-vweb kiamol/vweb --version 1.0.0`
+```
+Release "ch10-vweb" has been upgraded. Happy Helming!
+NAME: ch10-vweb
+LAST DEPLOYED: Wed Nov 15 08:45:32 2023
+NAMESPACE: default
+STATUS: deployed
+REVISION: 2
+TEST SUITE: None
+```
+
+### check the ReplicaSet:
+`kubectl get rs -l app.kubernetes.io/instance=ch10-vweb`
+```
+NAME                   DESIRED   CURRENT   READY   AGE
+ch10-vweb-5f87499974   3         3         3       108s
+```
+
+### get the URL for the app:
+`kubectl get svc ch10-vweb -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:8010'`
+```
+http://localhost:8010
+```
+
+### browse to the app URL
+```html
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>v1</title>
+        <style>
+            body {
+                background-color: #a8ebff;
+                font-family: "Lucida Console", Courier, monospace;
+            }
+            h1 {
+                font-weight: 800;
+                font-size: 80px;
+                color: #020c66;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>v1</h1>
+    </body>
+</html>
+```
+
+## Section 10.2: Packaging your own apps with Helm
+
+### switch to this chapter’s source:
+`cd ch10`
+
+### validate the chart contents:
+`helm lint web-ping`
+```
+==> Linting web-ping
+[INFO] Chart.yaml: icon is recommended
+
+1 chart(s) linted, 0 chart(s) failed
+```
+
+### install a release from the chart folder:
+`helm install wp1 web-ping/`
+```
+NAME: wp1
+LAST DEPLOYED: Wed Nov 15 08:51:14 2023
+NAMESPACE: default
+STATUS: deployed
+REVISION: 1
+TEST SUITE: None
+```
+
+### check the installed releases:
+`helm ls`
+```
+NAME      NAMESPACE REVISION  UPDATED                               STATUS    CHART           APP VERSION
+ch10-vweb default   2         2023-11-15 08:45:32.551091 -0600 CST  deployed  vweb-1.0.0      1.0.0      
+wp1       default   1         2023-11-15 08:51:14.357695 -0600 CST  deployed  web-ping-0.1.0  1.0.0      
+```
+
+### check the available settings for the chart:
+`helm show values web-ping/`
+```
+# targetUrl - URL of the website to ping
+targetUrl: blog.sixeyed.com
+# httpMethod - HTTP method to use for pings
+httpMethod: HEAD
+# pingIntervalMilliseconds - interval between pings in ms
+pingIntervalMilliseconds: 30000
+# chapter where this exercise is used
+kiamolChapter: ch10
+```
+
+### install a new release named wp2, using a different target:
+`helm install --set targetUrl=paulkaefer.com wp2 web-ping/`
+```
+NAME: wp2
+LAST DEPLOYED: Wed Nov 15 08:53:56 2023
+NAMESPACE: default
+STATUS: deployed
+REVISION: 1
+TEST SUITE: None
+```
+
+### wait a minute or so for the pings to fire, then check the logs:
+`kubectl logs -l app=web-ping --tail 1`
+```
+** web-ping ** Pinging: paulkaefer.com; method: HEAD; 30000ms intervals
+
+λ helm install --set targetUrl=google.com wp3 web-ping/
+NAME: wp3
+LAST DEPLOYED: Wed Nov 15 08:55:02 2023
+NAMESPACE: default
+STATUS: deployed
+REVISION: 1
+TEST SUITE: None
+
+```
+Getting some certificate errors, but I get the point.
+
+### add the official Helm repository:
+`helm repo add stable https://charts.helm.sh/stable`
+```
+"stable" has been added to your repositories
+```
+
+### install ChartMuseum--the repo flag fetches details from
+
+### the repository so you don’t need to update your local cache:
+`helm install --set service.type=LoadBalancer --set service.externalPort=8008 --set env.open.DISABLE_API=false repo stable/chartmuseum --version 2.13.0 --wait`
+```
+NAME: repo
+LAST DEPLOYED: Wed Nov 15 08:59:09 2023
+NAMESPACE: default
+STATUS: deployed
+REVISION: 1
+TEST SUITE: None
+NOTES:
+** Please be patient while the chart is being deployed **
+
+Get the ChartMuseum URL by running:
+
+** Please ensure an external IP is associated to the repo-chartmuseum service before proceeding **
+** Watch the status using: kubectl get svc --namespace default -w repo-chartmuseum **
+
+  export SERVICE_IP=$(kubectl get svc --namespace default repo-chartmuseum -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+  echo http://$SERVICE_IP:8008/
+
+OR
+
+  export SERVICE_HOST=$(kubectl get svc --namespace default repo-chartmuseum -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+  echo http://$SERVICE_HOST:8008/
+```
+
+### get the URL for your local ChartMuseum app:
+`kubectl get svc repo-chartmuseum -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:8008'`
+```
+http://localhost:8008
+
+Welcome to ChartMuseum!
+If you see this page, the ChartMuseum web server is successfully installed and working.
+
+For online documentation and support please refer to [the GitHub project.](https://github.com/helm/chartmuseum)
+Thank you for using ChartMuseum.
+```
+
+### add it as a repository called local:
+`helm repo add local $(kubectl get svc repo-chartmuseum -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:8008')`
+```
+"local" has been added to your repositories
+```
+
+
+### package the local chart:
+`helm package web-ping`
+```
+Successfully packaged chart and saved it to: /Users/paulkaefer/GitHub/kiamol/ch10/web-ping-0.1.0.tgz
+```
+
+### *on Windows 10* remove the PowerShell alias to use the real curl:
+`Remove-Item Alias:curl -ErrorAction Ignore`
+
+### upload the chart zip archive to ChartMuseum:
+`curl --data-binary "@web-ping-0.1.0.tgz" $(kubectl get svc repo-chartmuseum -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:8008/api/charts')`
+```
+{"saved":true}
+```
+
+### check that ChartMuseum has updated its index:
+`curl $(kubectl get svc repo-chartmuseum -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:8008/index.yaml')`
+```
+apiVersion: v1
+entries:
+  web-ping:
+  - apiVersion: v2
+    appVersion: 1.0.0
+    created: "2023-11-15T15:02:56.846719Z"
+    description: A simple web pinger
+    digest: 1c2f19f49021e0334fc98684c1f6da0e18bb1667077b02c2b7f1ba29e6587ee2
+    name: web-ping
+    type: application
+    urls:
+    - charts/web-ping-0.1.0.tgz
+    version: 0.1.0
+generated: "2023-11-15T15:03:07Z"
+serverInfo: {}
+```
+
+
+### update your repository cache:
+`helm repo update`
+```
+Hang tight while we grab the latest from your chart repositories...
+...Successfully got an update from the "local" chart repository
+...Successfully got an update from the "airflow-stable" chart repository
+...Successfully got an update from the "kiamol" chart repository
+...Successfully got an update from the "stable" chart repository
+Update Complete. ⎈Happy Helming!⎈
+```
+
+### verify that Helm can find your chart:
+`helm search repo web-ping`
+```
+NAME            CHART VERSION APP VERSION DESCRIPTION        
+local/web-ping  0.1.0         1.0.0       A simple web pinger
+```
+
+### check the local values file:
+`cat web-ping-values.yaml`
+```
+pingIntervalMilliseconds: 15000
+```
+
+### install from the repository using the values file:
+Note I tried another version with `wp3` above, so I renamed this:
+`helm install -f web-ping-values.yaml wp4 local/web-ping`
+```
+NAME: wp4
+LAST DEPLOYED: Wed Nov 15 09:04:55 2023
+NAMESPACE: default
+STATUS: deployed
+REVISION: 1
+TEST SUITE: None
+```
+
+### list all the Pods running the web-ping apps:
+`kubectl get pod -l app=web-ping -o custom-columns='NAME:.metadata.name,ENV:.spec.containers[0].env[*].value'`
+```
+NAME                   ENV
+wp1-b7b69b4dd-9m82w    blog.sixeyed.com,HEAD,30000
+wp2-7568f9c5d-hhrm8    paulkaefer.com,HEAD,30000
+wp3-68946c8856-m2djj   google.com,HEAD,30000
+wp4-6495b98586-qfv9z   blog.sixeyed.com,HEAD,15000`
+```
+
+## Section 10.3: Modeling dependencies in charts
+
+### install a release from the local chart folder:
+`helm install --set upstreamToProxy=ch10-vweb:8010 vweb-proxy proxy/`
+```
+NAME: vweb-proxy
+LAST DEPLOYED: Wed Nov 15 09:09:41 2023
+NAMESPACE: default
+STATUS: deployed
+REVISION: 1
+TEST SUITE: None
+```
+
+### get the URL for the new proxy service:
+`kubectl get svc vweb-proxy-proxy -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:8080'`
+```
+http://localhost:8080
+```
+
+### browse to the URL
+Same `v1` app (HTML even) as above.
+
+### build dependencies:
+`helm dependency build pi`
+```
+Hang tight while we grab the latest from your chart repositories...
+...Successfully got an update from the "local" chart repository
+...Successfully got an update from the "kiamol" chart repository
+...Successfully got an update from the "airflow-stable" chart repository
+...Successfully got an update from the "stable" chart repository
+Update Complete. ⎈Happy Helming!⎈
+Saving 2 charts
+Downloading vweb from repo https://kiamol.net
+Deleting outdated charts
+```
+
+### check that the dependencies have been downloaded:
+`ls ./pi/charts`
+```
+proxy-0.1.0.tgz vweb-2.0.0.tgz
+```
+
+### print the YAML Helm would deploy with default values:
+`helm install pi1 ./pi --dry-run`
+```yaml
+NAME: pi1
+LAST DEPLOYED: Wed Nov 15 09:15:23 2023
+NAMESPACE: default
+STATUS: pending-install
+REVISION: 1
+TEST SUITE: None
+HOOKS:
+MANIFEST:
+---
+# Source: pi/templates/web-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: pi1-web
+  labels:
+    kiamol: ch10
+spec:
+  ports:
+    - port: 80
+      name: http
+  selector:
+    app: pi1
+    component: web
+  type: LoadBalancer
+---
+# Source: pi/templates/web.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pi1-web
+  labels:
+    kiamol: ch10
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: pi1
+      component: web
+  template:
+    metadata:
+      labels:
+        app: pi1
+        component: web
+    spec:
+      containers:
+        - image: kiamol/ch05-pi
+          command: ["dotnet", "Pi.Web.dll", "-m", "web"]
+          name: web
+          ports:
+            - containerPort: 80
+              name: http
+```
+
+### install with custom settings to add the proxy:
+`helm install --set serviceType=ClusterIP --set proxy.enabled=true pi2 ./pi`
+```
+NAME: pi2
+LAST DEPLOYED: Wed Nov 15 09:15:41 2023
+NAMESPACE: default
+STATUS: deployed
+REVISION: 1
+TEST SUITE: None
+```
+
+### get the URL for the proxied app:
+`kubectl get svc pi2-proxy -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:8030'`
+```
+http://localhost:8030
+```
+
+### browse to it
+```
+To: 50 d.p.
+in: 0 ms.
+from: pi2-web-7c7b4fc8d4-8c9jv
+3.14159265358979323846264338327950288419716939937510
+```
+
+## Section 10.4: Upgrading and rolling back Helm releases
+
+### list all releases:
+`helm ls -q`
+```
+ch10-vweb
+pi2
+repo
+vweb-proxy
+wp1
+wp2
+wp3
+wp4
+```
+
+### check the values for the new chart version:
+`helm show values kiamol/vweb --version 2.0.0`
+```
+# port for the Service to listen on
+servicePort: 8090
+# type of the Service:
+serviceType: LoadBalancer
+# number of replicas for the web Pod
+replicaCount: 2
+```
+
+### deploy a new release using an internal Service type:
+`helm install --set servicePort=8020 --set replicaCount=1 --set serviceType=ClusterIP ch10-vweb-v2 kiamol/vweb --version 2.0.0`
+```
+NAME: ch10-vweb-v2
+LAST DEPLOYED: Wed Nov 15 11:36:11 2023
+NAMESPACE: default
+STATUS: deployed
+REVISION: 1
+TEST SUITE: None
+```
+
+### use a port-forward so you can test the app:
+`kubectl port-forward svc/ch10-vweb-v2 8020:8020`
+```
+Forwarding from 127.0.0.1:8020 -> 80
+Forwarding from [::1]:8020 -> 80
+```
+
+### browse to localhost:8020, then exit the port-forward with Ctrl-C or Cmd-C
+```html
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>v2</title>
+        <style>
+            body {
+                background-color: #b3ffe6;
+                font-family: "Times New Roman", Times, serif;
+            }
+            h1 {
+                font-size: 90px;
+                color: #02422d;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>v2</h1>
+    </body>
+</html>
+```
+
+```
+Handling connection for 8020
+^C
+```
+
+### remove the test release:
+`helm uninstall ch10-vweb-v2`
+```
+release "ch10-vweb-v2" uninstalled
+```
+
+### check the values used in the current version 1 release:
+`helm get values ch10-vweb`
+```
+USER-SUPPLIED VALUES:
+replicaCount: 3
+servicePort: 8010
+```
+
+### upgrade to version 2 using the same values--this will fail:
+`helm upgrade --reuse-values --atomic ch10-vweb kiamol/vweb --version 2.0.0`
+```
+Release "ch10-vweb" has been upgraded. Happy Helming!
+NAME: ch10-vweb
+LAST DEPLOYED: Wed Nov 15 12:07:47 2023
+NAMESPACE: default
+STATUS: deployed
+REVISION: 3
+TEST SUITE: None
+```
+Hmm, it worked for me. Trying again increments the REVISION to 4.
+
+### show the history of the vweb release:
+`helm history ch10-vweb`
+```
+REVISION  UPDATED                   STATUS      CHART       APP VERSION DESCRIPTION     
+1         Wed Nov 15 08:43:54 2023  superseded  vweb-1.0.0  1.0.0       Install complete
+2         Wed Nov 15 08:45:32 2023  superseded  vweb-1.0.0  1.0.0       Upgrade complete
+3         Wed Nov 15 12:07:47 2023  superseded  vweb-2.0.0  2.0.0       Upgrade complete
+4         Wed Nov 15 12:10:07 2023  deployed    vweb-2.0.0  2.0.0       Upgrade complete
+```
+
+### save the values of the current release to a YAML file:
+`helm get values ch10-vweb -o yaml > vweb-values.yaml`
+```
+λ cat vweb-values.yaml 
+replicaCount: 3
+servicePort: 8010
+```
+
+### upgrade to version 2 using the values file and the atomic flag:
+`helm upgrade -f vweb-values.yaml --atomic ch10-vweb kiamol/vweb --version 2.0.0`
+```
+Release "ch10-vweb" has been upgraded. Happy Helming!
+NAME: ch10-vweb
+LAST DEPLOYED: Wed Nov 15 12:15:36 2023
+NAMESPACE: default
+STATUS: deployed
+REVISION: 5
+TEST SUITE: None
+```
+
+### check the Service and ReplicaSet configuration:
+`kubectl get svc,rs -l app.kubernetes.io/instance=ch10-vweb`
+```
+NAME                TYPE           CLUSTER-IP       EXTERNAL-IP   PORT(S)          AGE
+service/ch10-vweb   LoadBalancer   10.103.142.148   localhost     8010:30299/TCP   3h32m
+
+NAME                                   DESIRED   CURRENT   READY   AGE
+replicaset.apps/ch10-vweb-5f87499974   0         0         0       3h32m
+replicaset.apps/ch10-vweb-69774b76bf   3         3         3       8m8s
+```
+`http://localhost:8010/` now has the v2 again.
+
+
+### confirm the values used in revision 2:
+`helm get values ch10-vweb --revision 2`
+```
+USER-SUPPLIED VALUES:
+replicaCount: 3
+servicePort: 8010
+```
+ 
+### roll back to that revision:
+`helm rollback ch10-vweb 2`
+```
+Rollback was a success! Happy Helming!
+```
+ 
+### check the latest two revisions:
+`helm history ch10-vweb --max 2 -o yaml`
+```
+- app_version: 2.0.0
+  chart: vweb-2.0.0
+  description: Upgrade complete
+  revision: 5
+  status: superseded
+  updated: "2023-11-15T12:15:36.344275-06:00"
+- app_version: 1.0.0
+  chart: vweb-1.0.0
+  description: Rollback to 2
+  revision: 6
+  status: deployed
+  updated: "2023-11-15T12:17:31.631021-06:00"
+```
+
+## Section 10.5: Understanding where Helm fits in
+
+### uninstall all the releases:
+`helm uninstall $(helm ls -q)`
+```
+release "ch10-vweb" uninstalled
+release "pi2" uninstalled
+release "repo" uninstalled
+release "vweb-proxy" uninstalled
+release "wp1" uninstalled
+release "wp2" uninstalled
+release "wp3" uninstalled
+release "wp4" uninstalled
+```
+
+## Chapter 10 lab
+```bash
+λ kubectl apply -f ./todo-list/
+configmap/todo-web-config created
+deployment.apps/todo-web created
+service/todo-web created
+
+λ kubectl get svc todo-web -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:8080'
+http://localhost:8080
+```
+Does not load...
+
+```bash
+λ helm lint ./ch10-lab-solution
+==> Linting ./ch10-lab-solution
+[INFO] Chart.yaml: icon is recommended
+
+1 chart(s) linted, 0 chart(s) failed
+
+λ helm install lab-test ./ch10-lab-solution
+NAME: lab-test
+LAST DEPLOYED: Wed Nov 15 12:20:33 2023
+NAMESPACE: default
+STATUS: deployed
+REVISION: 1
+TEST SUITE: None
+```
+browsing to localhost:8080:
+```
+This page isn’t working
+localhost is currently unable to handle this request.
+HTTP ERROR 500
+```
+`/config` does return `Status Code: 404; Not Found`.
+(actually a bunch of spaces afterwards -- 500, to be exact!)
+
+```bash
+λ helm install -f dev-values.yaml lab-dev ./ch10-lab-solution
+NAME: lab-dev
+LAST DEPLOYED: Wed Nov 15 12:23:12 2023
+NAMESPACE: default
+STATUS: deployed
+REVISION: 1
+TEST SUITE: None
+```
+Hmm, `/config` now has an nginx/1.17.10 404 page.
+
+### Lab teardown
+```bash
+λ helm uninstall lab-test lab-dev
+release "lab-test" uninstalled
+release "lab-dev" uninstalled
+
+λ kubectl delete all -l kiamol=ch10-lab
+service "todo-web" deleted
+deployment.apps "todo-web" deleted
+```
+

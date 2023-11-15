@@ -61,6 +61,8 @@ Still not fully understanding, but https://en.wikipedia.org/wiki/Kubernetes#Daem
 
 ## Chapter 10
 [bookmark](https://learning.oreilly.com/library/view/learn-kubernetes-in/9781617297984/OEBPS/Text/10.htm#heading_id_3)
+* see https://kiamol.net/index.yaml
+* "You should consider Helm charts to be immutable and always publish changes by publishing a new package version."
 
 ## Once complete:
 - [ ] read https://en.wikipedia.org/wiki/Kubernetes
