@@ -4,7 +4,7 @@ This is code and output from examples in the book.
 # Get where I need to be locally:
 `cd GitHub`
 
-# Section 2.1: How Kubernetes runs and manages containers
+## Section 2.1: How Kubernetes runs and manages containers
 
 ### run a Pod with a single container; the restart flag tells Kubernetes
 ### to create just the Pod and no other resources:
@@ -116,7 +116,7 @@ NAME                             READY   STATUS    RESTARTS   AGE
 hello-kiamol-4-fb9d497f8-rlzg7   1/1     Running   0          4s
 ```
 
-# Section 2.4: Working with applications in Pods
+## Section 2.4: Working with applications in Pods
 
 ### check the internal IP address of the first Pod we ran: 
 `kubectl get pod hello-kiamol -o custom-columns=NAME:metadata.name,POD_IP:status.podIP`
@@ -4858,4 +4858,181 @@ release "lab-dev" uninstalled
 service "todo-web" deleted
 deployment.apps "todo-web" deleted
 ```
+
+
+# Chapter 11: App development-Developer workflows and CI/CD
+
+## Section 11.1: The Docker developer workflow
+
+### switch to this chapter’s folder in the source code:
+`cd ch11`
+
+### build the app:
+`docker-compose -f bulletin-board/docker-compose.yml build`
+```
+[+] Building 5.4s (10/12)                                  docker:desktop-linux
+...
+ => ERROR [bulletin-board builder 4/4] RUN npm install                     0.8s
+------
+ > [bulletin-board builder 4/4] RUN npm install:
+0.786 npm ERR! code SELF_SIGNED_CERT_IN_CHAIN
+0.786 npm ERR! errno SELF_SIGNED_CERT_IN_CHAIN
+0.786 npm ERR! request to https://registry.npmjs.org/morgan failed, reason: self signed certificate in certificate chain
+0.788 
+0.788 npm ERR! A complete log of this run can be found in:
+0.788 npm ERR!     /root/.npm/_logs/2023-11-28T14_48_53_327Z-debug.log
+------
+failed to solve: process "/bin/sh -c npm install" did not complete successfully: exit code: 1
+```
+
+### run the app:
+`docker-compose -f bulletin-board/docker-compose.yml up -d`
+Also fails...
+
+### check the running  containers:
+`docker ps`
+
+### browse to the app at http://localhost:8010/
+
+### stop the app in Compose:
+`docker-compose -f bulletin-board/docker-compose.yml down`
+No output.
+
+### deploy in Kubernetes:
+`kubectl apply -f bulletin-board/kubernetes/`
+```
+deployment.apps/bulletin-board created
+service/bulletin-board created
+```
+
+### get the new URL:
+`kubectl get svc bulletin-board -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:8011'`
+```
+http://localhost:8011
+```
+
+### browse
+```
+This page isn’t working
+localhost didn’t send any data.
+ERR_EMPTY_RESPONSE
+```
+
+Started next code sample (`rm bulletin...`) and it errored out again. I will likely just read the rest of the chapter.
+
+## Section 11.2: The Kubernetes-as-a-Service developer workflow
+
+"**TRY IT NOW** Gogs is a simple but powerful Git server that is published as an image on Docker Hub. It’s a great way to run a private Git server in your organization or to quickly spin up a backup if your online service goes offline. Run Gogs in your cluster to push a local copy of the book’s source code."
+
+### deploy the Git server:
+`kubectl apply -f infrastructure/gogs.yaml`
+```
+service/gogs created
+deployment.apps/gogs created
+```
+
+### wait for it to spin up:
+`kubectl wait --for=condition=ContainersReady pod -l app=gogs`
+```
+pod/gogs-76d6d4846f-thqjl condition met
+```
+
+### add your local Git server to the book’s repository--this grabs the URL from the Service to use as the target:
+`git remote add gogs $(kubectl get svc gogs -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:3000/kiamol/kiamol.git')`
+
+### push the code to your server--authenticate with username kiamol and password kiamol:
+`git push gogs`
+```
+Enumerating objects: 3445, done.
+Counting objects: 100% (3445/3445), done.
+Delta compression using up to 8 threads
+Compressing objects: 100% (1560/1560), done.
+Username for 'http://localhost:3000': kiamol
+Password for 'http://kiamol@localhost:3000': 
+Writing objects: 100% (3445/3445), 10.53 MiB | 1.40 MiB/s, done.
+Total 3445 (delta 1687), reused 3422 (delta 1676), pack-reused 0
+remote: Resolving deltas: 100% (1687/1687), done.
+To http://localhost:3000/kiamol/kiamol.git
+ * [new branch]      master -> master
+```
+
+### find the server URL:
+`kubectl get svc gogs -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:3000'`
+```
+http://localhost:3000
+```
+I figured, based on the prior output.
+
+### browse and sign in with the same kiamol credentials
+![](./ch11/gogs_up_and_running.png)
+![](./ch11/gogs_logged_in.png)
+
+Output of these next four commands is reflected in "Figure 11.6 BuildKit running as a container image—building service, without requiring Docker".
+### deploy BuildKit:
+`kubectl apply -f infrastructure/buildkitd.yaml`
+```
+service/buildkitd created
+deployment.apps/buildkitd created
+```
+
+### wait for it to spin up:
+`kubectl wait --for=condition=ContainersReady pod -l app=buildkitd`
+```
+pod/buildkitd-6794789b55-h992m condition met
+```
+
+### verify that Git and BuildKit are available:
+`kubectl exec deploy/buildkitd -- sh -c 'git version && buildctl --version'`
+```
+git version 2.24.1
+buildctl github.com/moby/buildkit v0.7.1 ddd175c5a2cc24530ea8ff427887c22939ca4289
+```
+
+### check that Docker isn’t installed--this command will fail:
+`kubectl exec deploy/buildkitd -- sh -c 'docker version'`
+```
+sh: docker: not found
+command terminated with exit code 127
+```
+I do like when they warn us it will fail!
+
+
+### connect to a session on the BuildKit Pod:
+`kubectl exec -it deploy/buildkitd -- sh`
+
+### clone the source code from your Gogs server:
+```bash
+cd ~
+git clone http://gogs:3000/kiamol/kiamol.git
+```
+
+```
+λ kubectl exec -it deploy/buildkitd -- sh
+/ # cd ~
+~ # git clone http://gogs:3000/kiamol/kiamol.git
+Cloning into 'kiamol'...
+remote: Enumerating objects: 3445, done.
+remote: Counting objects: 100% (3445/3445), done.
+remote: Compressing objects: 100% (1549/1549), done.
+remote: Total 3445 (delta 1687), reused 3445 (delta 1687), pack-reused 0
+Receiving objects: 100% (3445/3445), 10.53 MiB | 77.00 MiB/s, done.
+Resolving deltas: 100% (1687/1687), done.
+~ # 
+```
+
+### switch to the app directory:
+`cd kiamol/ch11/bulletin-board/`
+
+### build the app using BuildKit; the options tell BuildKit to use Buildpacks instead of a Dockerfile as input and to produce an image as the output:
+`buildctl build --frontend=gateway.v0  --opt source=kiamol/buildkit-buildpacks --local context=src --output type=image,name=kiamol/ch11-bulletin-board:buildkit`
+Fails...
+
+### leave the session when the build completes
+`exit`
+
+
+
+
+
+
 

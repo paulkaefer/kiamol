@@ -68,6 +68,13 @@ Still not fully understanding, but https://en.wikipedia.org/wiki/Kubernetes#Daem
 * This paragraph was great:
 ![](./attachments/section_10.5_vital_paragraph.png)
 
+## Chapter 11
+* "This is the final chapter on Kubernetes in the real world" ?? So the rest is theoretical?
+* Figure_11-4.jpg intrigues me: "Using containers in the outer loop lets developers focus on code."
+![](./attachments/Figure_11-4.jpg)
+* **BuildKit** - open source project from the Docker team that helps mae our app portable (build container images without Docker!)
+  * "...a CNCF project called Buildpacks, a technology pioneered by Heroku to power their PaaS product."
+
 ## Once complete:
 - [ ] read https://en.wikipedia.org/wiki/Kubernetes
 - [ ] consider a certification. See page 8 for some info
