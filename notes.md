@@ -74,6 +74,8 @@ Still not fully understanding, but https://en.wikipedia.org/wiki/Kubernetes#Daem
 ![](./attachments/Figure_11-4.jpg)
 * **BuildKit** - open source project from the Docker team that helps mae our app portable (build container images without Docker!)
   * "...a CNCF project called Buildpacks, a technology pioneered by Heroku to power their PaaS product."
+  * Yong and I talked about this. I want to know how often Docker is not used, and why we would use BuildKit in a development/production setting.
+  * Essentially, it's *if* Docker is not used, there are options.
 * "Objects within a namespace are isolated, so you can deploy the same apps with the same object names in different namespaces."
 * Great bullet points in 11.5, notably, "The commitment to learning Docker and Kubernetes pays off because they’re portable skills—developers can easily move between projects using a standard toolset."
 
