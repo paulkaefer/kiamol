@@ -74,10 +74,13 @@ Still not fully understanding, but https://en.wikipedia.org/wiki/Kubernetes#Daem
 ![](./attachments/Figure_11-4.jpg)
 * **BuildKit** - open source project from the Docker team that helps mae our app portable (build container images without Docker!)
   * "...a CNCF project called Buildpacks, a technology pioneered by Heroku to power their PaaS product."
+* "Objects within a namespace are isolated, so you can deploy the same apps with the same object names in different namespaces."
+* Great bullet points in 11.5, notably, "The commitment to learning Docker and Kubernetes pays off because they’re portable skills—developers can easily move between projects using a standard toolset."
 
 ## Once complete:
 - [ ] read https://en.wikipedia.org/wiki/Kubernetes
 - [ ] consider a certification. See page 8 for some info
 - [ ] Try *Learn Docker in a Month of Lunches* (per p. xiii)
   - [ ] explore some of the docker images from this book in more detail, like [this one](https://hub.docker.com/r/kiamol/ch03-sleep)
+- [ ] could revisit Section 11.5 to review the author's workflow; where does he work full-time?
 

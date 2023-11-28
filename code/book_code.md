@@ -5031,8 +5031,155 @@ Fails...
 `exit`
 
 
+## Section 11.3: Isolating workloads with contexts and namespaces
+
+### create a new namespace:
+`kubectl create namespace kiamol-ch11-test`
+```
+namespace/kiamol-ch11-test created
+```
+
+### deploy a sleep Pod in the new namespace:
+`kubectl apply -f sleep.yaml --namespace kiamol-ch11-test`
+```
+deployment.apps/sleep created
+```
+
+### list sleep Pods--this won’t return anything:
+`kubectl get pods -l app=sleep`
+```
+No resources found in default namespace.
+```
+
+### now list the Pods in the namespace:
+`kubectl get pods -l app=sleep -n kiamol-ch11-test`
+```
+NAME                     READY   STATUS    RESTARTS   AGE
+sleep-568fb49bb7-fc99b   1/1     Running   0          19s
+```
 
 
+### create the namespace and Deployment:
+`kubectl apply -f sleep-uat.yaml`
+```
+namespace/kiamol-ch11-uat created
+deployment.apps/sleep created
+```
+
+### list the sleep Deployments in all namespaces:
+`kubectl get deploy -l app=sleep --all-namespaces`
+```
+NAMESPACE          NAME    READY   UP-TO-DATE   AVAILABLE   AGE
+kiamol-ch11-test   sleep   1/1     1            1           153m
+kiamol-ch11-uat    sleep   1/1     1            1           10s
+```
+
+### delete the new UAT namespace:
+`kubectl delete namespace kiamol-ch11-uat`
+```
+namespace "kiamol-ch11-uat" deleted
+```
+
+### list Deployments again:
+`kubectl get deploy -l app=sleep --all-namespaces`
+```
+NAMESPACE          NAME    READY   UP-TO-DATE   AVAILABLE   AGE
+kiamol-ch11-test   sleep   1/1     1            1           154m
+```
+
+### list all contexts:
+`kubectl config get-contexts`
+```
+CURRENT   NAME             CLUSTER          AUTHINFO         NAMESPACE
+*         docker-desktop   docker-desktop   docker-desktop   
+```
+
+### update the default namespace for the current context:
+`kubectl config set-context --current --namespace=kiamol-ch11-test`
+```
+Context "docker-desktop" modified.
+```
+
+### list the Pods in the default namespace:
+`kubectl get pods`
+```
+NAME                     READY   STATUS    RESTARTS   AGE
+sleep-568fb49bb7-fc99b   1/1     Running   0          156m
+
+λ kubectl config get-contexts
+CURRENT   NAME             CLUSTER          AUTHINFO         NAMESPACE
+*         docker-desktop   docker-desktop   docker-desktop   kiamol-ch11-test
+```
+
+### setting the namespace to blank resets the default:
+`kubectl config set-context --current --namespace=`
+```
+Context "docker-desktop" modified.
+```
+
+### printing out the config file shows your cluster connection:
+`kubectl config view`
+```
+apiVersion: v1
+clusters:
+- cluster:
+    certificate-authority-data: DATA+OMITTED
+    server: https://kubernetes.docker.internal:6443
+  name: docker-desktop
+contexts:
+- context:
+    cluster: docker-desktop
+    user: docker-desktop
+  name: docker-desktop
+current-context: docker-desktop
+kind: Config
+preferences: {}
+users:
+- name: docker-desktop
+  user:
+    client-certificate-data: DATA+OMITTED
+    client-key-data: DATA+OMITTED
+- name: iam-root-account@kiamol.us-west-2.eksctl.io
+  user:
+    exec:
+      apiVersion: client.authentication.k8s.io/v1beta1
+      args:
+      - token
+      - -i
+      - kiamol
+      command: aws-iam-authenticator
+      env:
+      - name: AWS_STS_REGIONAL_ENDPOINTS
+        value: regional
+      - name: AWS_DEFAULT_REGION
+        value: us-west-2
+      interactiveMode: IfAvailable
+      provideClusterInfo: false
+```
 
 
+## Section 11.4: Continuous delivery in Kubernetes without Docker
+
+Not running since I know I wasn't able to build the Node app earlier. But I might try on a different machine sometime.
+
+## Section 11.5: Evaluating developer workflows on Kubernetes
+
+Teardown:
+### uninstall the Helm release from the pipeline:
+`helm -n kiamol-ch11-test uninstall bulletin-board`
+```
+Error: uninstall: Release not loaded: bulletin-board: release: not found
+```
+...as expected.
+
+### delete the manual deployment:
+`kubectl delete all -l app=bulletin-board`
+```
+pod "bulletin-board-7ccbb48465-b7hd4" deleted
+service "bulletin-board" deleted
+deployment.apps "bulletin-board" deleted
+```
+
+## Chapter 11 lab
+Skipping this for now. Let's see if Yong deployed it; I can revisit on a different machine, once I have that setup.
 
