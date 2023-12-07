@@ -5404,7 +5404,7 @@ deployment.apps "todo-db" deleted
 deployment.apps "todo-web" deleted
 ```
 
-# install the Helm release:
+### install the Helm release:
 `helm install --atomic todo-list todo-list/helm/v1/todo-list/`
 ```
 NAME: todo-list
@@ -5422,8 +5422,8 @@ Installed Kiamol to-do list 0.1.0. This is how to get the URL:
 http://localhost:8012
 ```
  
-# browse to the app, and add a new item
-
+### browse to the app, and add a new item
+Still unable.
 
 
 

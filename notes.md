@@ -82,6 +82,7 @@ Still not fully understanding, but https://en.wikipedia.org/wiki/Kubernetes#Daem
 ## Chapter 12
 * Readiness probes seem neat, especially for larger clusters & with nodes/processes that take a while to setup. Imagine an app where each node needs to read a large dataset & do some preprocessing before results are displayed. Or really any pipeline... nodes waiting for an earlier piece of the pipeline to complete will need to wait.
 * "If you see a Pod in CrashLoopBackOff, it usually means the app is beyond repair."
+* Bookmark: 12.4
 
 ## Once complete:
 - [ ] read https://en.wikipedia.org/wiki/Kubernetes
