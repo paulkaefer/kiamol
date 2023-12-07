@@ -79,6 +79,10 @@ Still not fully understanding, but https://en.wikipedia.org/wiki/Kubernetes#Daem
 * "Objects within a namespace are isolated, so you can deploy the same apps with the same object names in different namespaces."
 * Great bullet points in 11.5, notably, "The commitment to learning Docker and Kubernetes pays off because they’re portable skills—developers can easily move between projects using a standard toolset."
 
+## Chapter 12
+* Readiness probes seem neat, especially for larger clusters & with nodes/processes that take a while to setup. Imagine an app where each node needs to read a large dataset & do some preprocessing before results are displayed. Or really any pipeline... nodes waiting for an earlier piece of the pipeline to complete will need to wait.
+* "If you see a Pod in CrashLoopBackOff, it usually means the app is beyond repair."
+
 ## Once complete:
 - [ ] read https://en.wikipedia.org/wiki/Kubernetes
 - [ ] consider a certification. See page 8 for some info

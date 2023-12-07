@@ -5183,3 +5183,251 @@ deployment.apps "bulletin-board" deleted
 ## Chapter 11 lab
 Skipping this for now. Let's see if Yong deployed it; I can revisit on a different machine, once I have that setup.
 
+
+# Chapter 12: Empowering self-healing apps
+
+## Section 12.1 Routing traffic to healthy Pods using readiness probes
+
+
+### switch to the chapter’s directory:
+`cd ch12`
+
+### deploy the random-number API:
+kubectl apply -f numbers/
+```
+service/numbers-api created
+deployment.apps/numbers-api created
+```
+
+### wait for it to be ready:
+`kubectl wait --for=condition=ContainersReady pod -l app=numbers-api`
+```
+pod/numbers-api-757d849ff-65tjm condition met
+pod/numbers-api-757d849ff-xvrgm condition met
+```
+
+### check that the Pod is registered as Service endpoints:
+`kubectl get endpoints numbers-api`
+```
+NAME          ENDPOINTS                     AGE
+numbers-api   10.1.1.148:80,10.1.1.149:80   21s
+```
+
+### save the URL for the API in a text file:
+`kubectl get svc numbers-api -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:8013' > api-url.txt`
+```bash
+λ cat api-url.txt
+http://localhost:8013
+```
+
+### call the API--after returning, this app server is now unhealthy:
+`curl "$(cat api-url.txt)/rng"`
+```
+81
+{"message":"Unhealthy!"}
+```
+
+### test the health endpoints to check:
+`curl "$(cat api-url.txt)/healthz"; curl "$(cat api-url.txt)/healthz"`
+```
+Ok{"message":"Unhealthy"}
+```
+Additional attempts gave me `OkOk` and `{"message":"Unhealthy"}{"message":"Unhealthy"}`.
+
+### confirm the Pods used by the service:
+`kubectl get endpoints numbers-api`
+```
+NAME          ENDPOINTS                     AGE
+numbers-api   10.1.1.148:80,10.1.1.149:80   88s
+```
+
+### check the Service endpoints:
+`kubectl get endpoints numbers-api`
+```
+NAME          ENDPOINTS                     AGE
+numbers-api   10.1.1.148:80,10.1.1.149:80   3m48s
+```
+ 
+### call the API, triggering it to go unhealthy:
+`curl "$(cat api-url.txt)/rng"`
+Two calls:
+```
+14
+{"message":"Unhealthy!"}
+```
+
+### wait for the readiness probe to fire:
+`sleep 10`
+
+### check the endpoints again:
+`kubectl get endpoints numbers-api`
+```
+NAME          ENDPOINTS                     AGE
+numbers-api   10.1.1.148:80,10.1.1.149:80   4m22s
+```
+
+### check the Pod status:
+`kubectl get pods -l app=numbers-api`
+```
+NAME                          READY   STATUS    RESTARTS   AGE
+numbers-api-757d849ff-65tjm   1/1     Running   0          4m33s
+numbers-api-757d849ff-xvrgm   1/1     Running   0          4m33s
+```
+
+### we could reset the API... but there are no Pods ready to receive traffic so this will fail:
+`curl "$(cat api-url.txt)/reset"`
+```
+Ok
+```
+`curl "$(cat api-url.txt)/rng"`
+```
+8
+```
+Another `sleep 10` results in a successful call, which returns `96`.
+
+## Section 12.2: Restarting unhealthy Pods with liveness probes
+
+### update the Pod spec from listing 12.2:
+`kubectl apply -f numbers/update/api-with-readiness-and-liveness.yaml`
+```
+deployment.apps/numbers-api configured
+```
+
+### wait for the new Pods:
+`kubectl wait --for=condition=ContainersReady pod -l app=numbers-api,version=v3`
+```
+pod/numbers-api-7bf6c69dfb-4m4mq condition met
+pod/numbers-api-7bf6c69dfb-r58wg condition met
+```
+
+### check the Pod status:
+`kubectl get pods -l app=numbers-api -o wide`
+```
+NAME                           READY   STATUS    RESTARTS   AGE   IP           NODE             NOMINATED NODE   READINESS GATES
+numbers-api-7bf6c69dfb-4m4mq   1/1     Running   0          19s   10.1.1.150   docker-desktop   <none>           <none>
+numbers-api-7bf6c69dfb-r58wg   1/1     Running   0          16s   10.1.1.151   docker-desktop   <none>           <none>
+```
+
+### check the Servivce endpoints:
+`kubectl get endpoints numbers-api  # two`
+```
+NAME          ENDPOINTS                     AGE
+numbers-api   10.1.1.150:80,10.1.1.151:80   8m39s
+```
+
+### cause one application to become unhealthy:
+`curl "$(cat api-url.txt)/rng"`
+```
+81
+{"message":"Unhealthy!"}
+95
+88
+{"message":"Unhealthy!"}
+```
+
+### wait for the probes to fire, and check the Pods again:
+`sleep 20`
+`kubectl get pods -l app=numbers-api`
+```
+NAME                           READY   STATUS    RESTARTS      AGE
+numbers-api-7bf6c69dfb-4m4mq   1/1     Running   1 (26s ago)   107s
+numbers-api-7bf6c69dfb-r58wg   1/1     Running   2 (14s ago)   104s
+```
+
+
+### deploy the web and database:
+`kubectl apply -f todo-list/db/ -f todo-list/web/`
+```
+secret/todo-db-secret configured
+service/todo-db created
+deployment.apps/todo-db created
+configmap/todo-web-config configured
+secret/todo-web-secret configured
+service/todo-web created
+deployment.apps/todo-web created
+```
+
+### wait for the app to be ready:
+`kubectl wait --for=condition=ContainersReady pod -l app=todo-web`
+```
+pod/todo-web-7b8d778988-snnjb condition met
+pod/todo-web-7b8d778988-sxdv9 condition met
+```
+
+### get the URL for the service:
+`kubectl get svc todo-web -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:8081'`
+```
+http://localhost:8081
+```
+
+### browse to the app, and add a new item
+Can browse; can't add any items.
+
+
+### apply the update:
+`kubectl apply -f todo-list/db/update/todo-db-bad-command.yaml`
+```
+deployment.apps/todo-db configured
+```
+
+### watch the Pod status changing:
+`kubectl get pods -l app=todo-db --watch`
+```bash
+Thu Dec 07 12:46:29
+~/GitHub/kiamol/ch12
+paulkaefer ~/GitHub/kiamol/ch12 λ kubectl get pods -l app=todo-db --watch
+NAME                       READY   STATUS    RESTARTS   AGE
+todo-db-5d4994db89-lzsp6   0/1     Running   0          8s
+todo-db-975596846-fvj6q    1/1     Running   0          2m28s
+todo-db-5d4994db89-lzsp6   0/1     Running   1 (1s ago)   62s
+todo-db-5d4994db89-lzsp6   0/1     Running   2 (0s ago)   2m1s
+^C
+Thu Dec 07 12:48:34
+~/GitHub/kiamol/ch12
+paulkaefer ~/GitHub/kiamol/ch12 λ 
+```
+
+### refresh the app to check that it still works ctrl-c or cmd-c to exit the Kubectl watch
+
+Now `http://localhost:8081/new` shows me `Status Code: 400; Bad Request`.
+
+## Section 12.3: Deploying upgrades safely with Helm
+
+### remove all existing apps from the chapter:
+`kubectl delete all -l kiamol=ch12`
+```
+service "numbers-api" deleted
+service "todo-db" deleted
+service "todo-web" deleted
+deployment.apps "numbers-api" deleted
+deployment.apps "todo-db" deleted
+deployment.apps "todo-web" deleted
+```
+
+# install the Helm release:
+`helm install --atomic todo-list todo-list/helm/v1/todo-list/`
+```
+NAME: todo-list
+LAST DEPLOYED: Thu Dec  7 12:55:19 2023
+NAMESPACE: default
+STATUS: deployed
+REVISION: 1
+TEST SUITE: None
+NOTES:
+Installed Kiamol to-do list 0.1.0. This is how to get the URL:
+ $ kubectl get svc todo-list-web -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:8012'
+```
+
+```
+http://localhost:8012
+```
+ 
+# browse to the app, and add a new item
+
+
+
+
+
+
+
+
