@@ -5426,7 +5426,290 @@ http://localhost:8012
 Still unable.
 
 
+# Chapter 13: Centralizing logs with Fluentd and Elasticsearch
 
+## Section 13.1: How Kubernetes stores log entries
+
+### switch to the chapter’s folder:
+`cd ch13`
+
+### deploy the timecheck app in development and test namespaces:
+`kubectl apply -f timecheck/`
+```
+namespace/kiamol-ch13-dev created
+deployment.apps/timecheck created
+namespace/kiamol-ch13-test created
+configmap/timecheck-config created
+deployment.apps/timecheck created
+```
+
+### wait for the development namespace to spin up:
+`kubectl wait --for=condition=ContainersReady pod -l app=timecheck -n kiamol-ch13-dev`
+```
+pod/timecheck-7589456574-bcjxl condition met
+```
+
+### check the logs:
+`kubectl logs -l app=timecheck --all-containers -n kiamol-ch13-dev --tail 1`
+```
+2023-12-14 17:23:18.014 +00:00 [INF] Environment: DEV; version: 1.0; time check: 17:23.17
+```
+
+### wait for the test namespace to spin up:
+`kubectl wait --for=condition=ContainersReady pod -l app=timecheck -n kiamol-ch13-test`
+```
+pod/timecheck-76bc55f9c5-66lh4 condition met
+pod/timecheck-76bc55f9c5-pcgnj condition met
+```
+
+### check those logs:
+`kubectl logs -l app=timecheck --all-containers -n kiamol-ch13-test --tail 1`
+```
+2023-12-14 17:23:35.114 +00:00 [INF] Environment: TEST; version: 1.1; time check: 17:23.35
+2023-12-14 17:23:35.636 +00:00 [INF] Environment: TEST; version: 1.1; time check: 17:23.35
+```
+
+### run the Deployment:
+`kubectl apply -f sleep.yaml`
+```
+deployment.apps/sleep created
+```
+
+### connect to a session in the Pod container:
+`kubectl exec -it deploy/sleep -- sh`
+
+### browse to the host log mount:
+`cd /var/log/containers/`
+
+### list the timecheck log files:
+`ls timecheck*kiamol-ch13*_logger*`
+
+### view the contents of the dev log file:
+`cat $(ls timecheck*kiamol-ch13-dev_logger*) | tail -n 1`
+
+```bash
+/ # cd /var/log/containers/
+/var/log/containers # ls timecheck*kiamol-ch13*_logger*
+timecheck-7589456574-bcjxl_kiamol-ch13-dev_logger-0809b18330c364c441f6b8b1c3cb0875f6e9a61b19404e9f932bfe36806faf8f.log
+timecheck-76bc55f9c5-66lh4_kiamol-ch13-test_logger-5b9631a231eb427ca135b4ff92447e1782f660d8e02a2bc935073199ebe38e33.log
+timecheck-76bc55f9c5-pcgnj_kiamol-ch13-test_logger-8ee3c1212b31728d9b8e9e3c14b92f517b9214e5d759cdc3bbfc73e9dd99b034.log
+/var/log/containers # cat $(ls timecheck*kiamol-ch13-dev_logger*) | tail -n 1
+{"log":"2023-12-14 17:25:17.990 +00:00 [INF] Environment: DEV; version: 1.0; time check: 17:25.17\n","stream":"stdout","time":"2023-12-14T17:25:18.674626084Z"}
+/var/log/containers # exit
+```
+
+### exit from the session:
+`exit`
+
+
+### connect to a session in the Pod:
+`kubectl exec -it deploy/sleep -- sh`
+
+### browse to the host path volume:
+`cd /var/log/containers/`
+
+### the network proxy runs on every node:
+`cat $(ls kube-proxy*) | tail -n 1`
+
+### if your cluster uses Core DNS, you’ll see logs here:
+`cat $(ls coredns*) | tail -n 1`
+
+### if your node is running the API server, you’ll see these logs:
+`cat $(ls kube-apiserver*) | tail -n 1`
+
+### leave the session:
+`exit`
+
+```bash
+/ # cd /var/log/containers/
+/var/log/containers # cat $(ls kube-proxy*) | tail -n 1
+{"log":"I1214 17:22:56.194561       1 shared_informer.go:318] Caches are synced for node config\n","stream":"stderr","time":"2023-12-14T17:22:56.194779254Z"}
+/var/log/containers # cat $(ls coredns*) | tail -n 1
+{"log":"[INFO] plugin/ready: Still waiting on: \"kubernetes\"\n","stream":"stdout","time":"2023-12-14T17:23:18.035776125Z"}
+/var/log/containers # cat $(ls kube-apiserver*) | tail -n 1
+{"log":"I1214 17:22:58.298751       1 controller.go:624] quota admission added evaluator for: endpoints\n","stream":"stderr","time":"2023-12-14T17:22:58.300372588Z"}
+/var/log/containers # exit
+```
+
+## Section 13.2: Collecting logs from nodes with Fluentd
+
+### deploy the DaemonSet and ConfigMap:
+`kubectl apply -f fluentbit/`
+```
+namespace/kiamol-ch13-logging created
+configmap/fluent-bit-config created
+daemonset.apps/fluent-bit created
+serviceaccount/fluent-bit created
+clusterrole.rbac.authorization.k8s.io/fluent-bit created
+error: resource mapping not found for name: "fluent-bit" namespace: "" from "fluentbit/fluentbit.yaml": no matches for kind "ClusterRoleBinding" in version "rbac.authorization.k8s.io/v1beta1"
+ensure CRDs are installed first
+```
+
+### wait for Fluent Bit to start up:
+`kubectl wait --for=condition=ContainersReady pod -l app=fluent-bit -n kiamol-ch13-logging`
+```
+pod/fluent-bit-hwk86 condition met
+```
+
+### check the logs of the Fluent Bit Pod:
+`kubectl logs  -l app=fluent-bit -n kiamol-ch13-logging --tail 2`
+```
+{"date":1702575206.262565,"log":"2023-12-14 17:33:25.632 +00:00 [INF] Environment: TEST; version: 1.1; time check: 17:33.25\n","stream":"stdout","time":"2023-12-14T17:33:26.262565046Z"}
+{"date":1702575208.170758,"log":"2023-12-14 17:33:27.985 +00:00 [INF] Environment: DEV; version: 1.0; time check: 17:33.27\n","stream":"stdout","time":"2023-12-14T17:33:28.170757963Z"}
+```
+
+### update the data pipeline configuration files:
+`kubectl apply -f fluentbit/update/fluentbit-config-match.yaml`
+```
+configmap/fluent-bit-config configured
+```
+
+### restart the DaemonSet so a new Pod gets the changed configuration:
+`kubectl rollout restart ds/fluent-bit -n kiamol-ch13-logging`
+```
+daemonset.apps/fluent-bit restarted
+```
+
+### wait for the new logging Pod:
+`kubectl wait --for=condition=ContainersReady pod -l app=fluent-bit -n kiamol-ch13-logging`
+```
+pod/fluent-bit-tqxhl condition met
+```
+
+### print the last log entry:
+`kubectl logs  -l app=fluent-bit -n kiamol-ch13-logging --tail 1`
+```
+{"date":1702575515.125852,"log":"2023-12-14 17:38:35.101 +00:00 [INF] Environment: TEST; version: 1.1; time check: 17:38.35\n","stream":"stdout","time":"2023-12-14T17:38:35.1258523Z"}
+```
+
+
+### update the configuration and restart Fluent Bit:
+`kubectl apply -f fluentbit/update/fluentbit-config-match-multiple.yaml`
+```
+configmap/fluent-bit-config configured
+```
+
+`kubectl rollout restart ds/fluent-bit -n kiamol-ch13-logging`
+```
+daemonset.apps/fluent-bit restarted
+```
+
+`kubectl wait --for=condition=ContainersReady pod -l app=fluent-bit -n kiamol-ch13-logging`
+```
+pod/fluent-bit-xv27c condition met
+```
+ 
+### print the last two log lines:
+`kubectl logs  -l app=fluent-bit -n kiamol-ch13-logging --tail 2`
+```
+1702575610.166681,2 (total = 2)
+{"date":1702575605.63383,"log":"2023-12-14 17:40:05.627 +00:00 [INF] Environment: TEST; version: 1.1; time check: 17:40.05\n","stream":"stdout","time":"2023-12-14T17:40:05.6338303Z"}
+```
+
+Ran again:
+```
+1702575615.165694,1 (total = 3)
+{"date":1702575615.642952,"log":"2023-12-14 17:40:15.626 +00:00 [INF] Environment: TEST; version: 1.1; time check: 17:40.15\n","stream":"stdout","time":"2023-12-14T17:40:15.642951763Z"}
+```
+
+...and again!
+```
+1702575635.164616,1 (total = 7)
+{"date":1702575635.661916,"log":"2023-12-14 17:40:35.625 +00:00 [INF] Environment: TEST; version: 1.1; time check: 17:40.35\n","stream":"stdout","time":"2023-12-14T17:40:35.661915967Z"}
+```
+
+## Section 13.3: Shipping logs to Elasticsearch
+
+### create the Elasticsearch deployment, and wait for the Pod:
+`kubectl apply -f elasticsearch/`
+```
+service/elasticsearch created
+deployment.apps/elasticsearch created
+```
+
+`kubectl wait --for=condition=ContainersReady pod -l app=elasticsearch -n kiamol-ch13-logging`
+```
+pod/elasticsearch-6f45f77487-6484p condition met
+```
+
+### create the Kibana deployment, and wait for it to start:
+`kubectl apply -f kibana/`
+```
+service/kibana created
+deployment.apps/kibana created
+```
+
+`kubectl wait --for=condition=ContainersReady pod -l app=kibana -n kiamol-ch13-logging`
+```
+pod/kibana-844b4c58d4-xpjjv condition met
+```
+
+### get the URL for Kibana:
+`kubectl get svc kibana -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:5601' -n kiamol-ch13-logging`
+```
+http://localhost:5601
+```
+
+
+### deploy the updated configuration from listing 13.3
+`kubectl apply -f fluentbit/update/fluentbit-config-elasticsearch.yaml`
+```
+configmap/fluent-bit-config configured
+```
+
+### update Fluent Bit, and wait for it to restart
+`kubectl rollout restart ds/fluent-bit -n kiamol-ch13-logging`
+```
+daemonset.apps/fluent-bit restarted
+```
+
+`kubectl wait --for=condition=ContainersReady pod -l app=fluent-bit -n kiamol-ch13-logging`
+```
+pod/fluent-bit-dxjf2 condition met
+```
+
+### now browse to Kibana and set up the search:
+* click Discover on the left navigation panel 
+* create a new index pattern
+* enter "test" as the index pattern
+* in the next step, select @timestamp as the time filter field
+* click Create Index Pattern 
+* click Discover again on the left navigation panel to see the logs
+See two screenshots!
+
+### deploy the API and proxy:
+`kubectl apply -f numbers/`
+```
+service/numbers-api created
+deployment.apps/numbers-api created
+service/numbers-api-proxy created
+configmap/numbers-api-proxy-config created
+deployment.apps/numbers-api-proxy created
+```
+ 
+### wait for the app to start up:
+`kubectl wait --for=condition=ContainersReady pod -l app=numbers-api -n kiamol-ch13-test`
+```
+pod/numbers-api-66dbcbc888-96gjm condition met
+```
+ 
+### get the URL to use the API via the proxy:
+`kubectl get svc numbers-api-proxy -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:8080/rng' -n kiamol-ch13-test`
+```
+http://localhost:8080/rng
+```
+ 
+### browse to the API, wait 30 seconds, and refresh until you get an error
+### browse to Kibana, and enter this query in the search bar:
+### kubernetes.labels.app:numbers-api AND log:<failure-ID-from-the-API>
+In browser:
+```
+{"message":"Unhealthy! Failure ID: 358d0430-b810-4b9d-b5c5-7169a531a077"}
+```
+
+Didn't see results with `kubernetes.labels.app:numbers-api AND log:358d0430-b810-4b9d-b5c5-7169a531a077`, but if I just search that error ID or the next one I get (`ea783aad-7ff6-480c-b3df-b22a71ad1ad0`), I see results.
+
+## Section 13.4: Parsing and filtering log entries
 
 
 

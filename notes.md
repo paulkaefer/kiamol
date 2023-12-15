@@ -84,6 +84,10 @@ Still not fully understanding, but https://en.wikipedia.org/wiki/Kubernetes#Daem
 * "If you see a Pod in CrashLoopBackOff, it usually means the app is beyond repair."
 * Bookmark: 12.4
 
+## Chapter 13
+* using Fluentd (collector) and Elasticsearch (storage) with Kubernetes logs
+  * EFK stack: Elasticsearch, Fluentd, and Kibana
+
 ## Once complete:
 - [ ] read https://en.wikipedia.org/wiki/Kubernetes
 - [ ] consider a certification. See page 8 for some info
