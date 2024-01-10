@@ -87,6 +87,12 @@ Still not fully understanding, but https://en.wikipedia.org/wiki/Kubernetes#Daem
 ## Chapter 13
 * using Fluentd (collector) and Elasticsearch (storage) with Kubernetes logs
   * EFK stack: Elasticsearch, Fluentd, and Kibana
+* Fluent Bit can modify logs... why would we want that? I could see the case for redacting sensitive info.
+
+## Chapter 14
+* Monitoring applications and Kubernetes with [Prometheus](https://prometheus.io/)
+* Prometheus does seem comparable to Datadog, so if you use the latter, you don't necessarily need the former.
+* cAdvisor uses Kubernetes service discovery to find every Pod in the DaemonSet, which would present one target for each node in a multinode cluster.
 
 ## Once complete:
 - [ ] read https://en.wikipedia.org/wiki/Kubernetes
