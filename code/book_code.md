@@ -5711,6 +5711,58 @@ Didn't see results with `kubernetes.labels.app:numbers-api AND log:358d0430-b810
 
 ## Section 13.4: Parsing and filtering log entries
 
+# Chapter 14: didn't run through exercises
+# Chapter 15: didn't run through exercises
+
+# Chapter 16: Securing applications with policies, contexts, and admission control
+
+## Section 16.1: Securing communication with network policies
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

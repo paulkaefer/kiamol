@@ -94,6 +94,14 @@ Still not fully understanding, but https://en.wikipedia.org/wiki/Kubernetes#Daem
 * Prometheus does seem comparable to Datadog, so if you use the latter, you don't necessarily need the former.
 * cAdvisor uses Kubernetes service discovery to find every Pod in the DaemonSet, which would present one target for each node in a multinode cluster.
 
+## Chapter 15
+* Managing incoming traffic with Ingress
+* showing sites like web.kiamol.local, with endpoints that potentially route to different nodes
+* Traefik
+
+## Chapter 16
+* "Kubernetes has many features to secure your applications, but none of them are enabled by default."
+
 ## Once complete:
 - [ ] read https://en.wikipedia.org/wiki/Kubernetes
 - [ ] consider a certification. See page 8 for some info
