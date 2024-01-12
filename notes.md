@@ -101,6 +101,11 @@ Still not fully understanding, but https://en.wikipedia.org/wiki/Kubernetes#Daem
 
 ## Chapter 16
 * "Kubernetes has many features to secure your applications, but none of them are enabled by default."
+* Rules default to deny
+* APOD apps not working, but https://apod.nasa.gov/apod/image/2007/ISS063-E-39888_APOD1050.jpg from screenshot is nice.
+* GitHub repository full of network policy recipes published by Ahmet Alp Balkan, an engineer at Google: https://github.com/ahmetb/ kubernetes-network-policy-recipes.
+* Figure 16.7: "If you’ve heard the phrase “secure by default,” it wasn’t said about Kubernetes."
+* Not totally sure I understand everything mentioned about webhooks...
 
 ## Once complete:
 - [ ] read https://en.wikipedia.org/wiki/Kubernetes

@@ -5718,15 +5718,326 @@ Didn't see results with `kubernetes.labels.app:numbers-api AND log:358d0430-b810
 
 ## Section 16.1: Securing communication with network policies
 
+### switch to the chapter folder:
+`cd ch16`
+
+### deploy the APOD app:
+`kubectl apply -f apod/`
+```
+service/apod-api created
+deployment.apps/apod-api created
+service/apod-log created
+deployment.apps/apod-log created
+service/apod-web created
+deployment.apps/apod-web created
+```
+
+### wait for it to be ready:
+`kubectl wait --for=condition=ContainersReady pod -l app=apod-web`
+Took maybe five seconds or so?
+```
+pod/apod-web-66c5b9d8c4-dwbxs condition met
+```
+
+### browse to the Service on port 8016 if you want to see today's picture
+No image...s
+```
+Image Gallery
+
+©
+```
+ 
+### now run a sleep Pod:
+`kubectl apply -f sleep.yaml`
+```
+deployment.apps/sleep configured
+```
+ 
+### confirm that the sleep Pod can use the API:
+`kubectl exec  deploy/sleep -- curl -s http://apod-api/image`
+```
+{"timestamp":"2024-01-11T14:37:39.139+00:00","status":500,"error":"Internal Server Error","message":"","path":"/image"}
+```
+ 
+### read the metrics from the access log:
+`kubectl exec deploy/sleep -- sh -c 'curl -s http://apod-log/metrics | head -n 2'`
+```
+# HELP access_log_total Access Log - total log requests
+# TYPE access_log_total counter
+```
+
+### create the policy:
+`kubectl apply -f apod/update/networkpolicy-api.yaml`
+```
+networkpolicy.networking.k8s.io/apod-api created
+```
+
+### confirm it is there:
+`kubectl get networkpolicy`
+```
+NAME       POD-SELECTOR   AGE
+apod-api   app=apod-api   11s
+```
+
+### try to access the API from the sleep Pod--this is not permitted  by the policy:
+`kubectl exec deploy/sleep -- curl http://apod-api/image`
+```
+% Total    % Received % Xferd  Average Speed   Time    Time     Time  Current                                 Dload  Upload   Total   Spent    Left  Speed
+0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0{"timestamp":"2024-01-11T14:40:06.832+00:00","status":500,"error":"Internal Server100   119    0   119    0     0    329      0 --:--:-- --:--:-- --:--:--   330
+```
 
 
+### install the Kind command line using instructions at https://kind.sigs.k8s.io/docs/user/quick-start/
+Done.
+
+### create a new cluster with a custom Kind configuration:
+`kind create cluster --image kindest/node:v1.18.4 --name kiamol-ch16 --config kind/kind-calico.yaml`
+```
+ERROR: failed to create cluster: unknown apiVersion: kind.sigs.k8s.io/v1alpha3
+```
+
+### install the Calico network plugin:
+`kubectl apply -f kind/calico.yaml`
+
+### wait for Calico to spin up:
+`kubectl wait --for=condition=ContainersReady pod -l k8s-app=calico-node -n kube-system`
+
+### confirm your new cluster is ready:
+`kubectl get nodes`
+
+...
+
+`kind delete cluster --name kiamol-ch16`
+```
+Deleting cluster "kiamol-ch16" ...
+
+λ kubectl get nodes
+NAME             STATUS   ROLES           AGE   VERSION
+docker-desktop   Ready    control-plane   63d   v1.28.2
+```
+
+## Section 16.2: Restricting container capabilities with security contexts
+
+### deploy the app:
+`kubectl apply -f pi/`
+```
+deployment.apps/pi-web created
+service/pi-web created
+```
+
+### wait for the container to start:
+`kubectl wait --for=condition=ContainersReady pod -l app=pi-web`
+```
+pod/pi-web-66544ccb68-mlcbr condition met
+```
+
+### print the name of the user in the Pod container:
+`kubectl exec deploy/pi-web -- whoami`
+```
+root
+```
+
+### try to access the Kubernetes API server:
+`kubectl exec deploy/pi-web -- sh -c 'curl -k -s https://kubernetes.default | grep message'`
+```
+sh: curl: not found
+command terminated with exit code 1
+```
+
+### print the API access token:
+`kubectl exec deploy/pi-web -- cat /run/secrets/kubernetes.io/serviceaccount/token`
+```
+eyJhbGc...AYAt84ZDj9w
+```
 
 
+### add the nonroot SecurityContext:
+`kubectl apply -f pi/update/deployment-podsecuritycontext.yaml`
+```
+deployment.apps/pi-web configured
+```
 
+### wait for the new Pod:
+`kubectl wait --for=condition=ContainersReady pod -l app=pi-web`
+```
+pod/pi-web-86f86c9fb8-kcfbf condition met
+```
 
+### confirm the user:
+`kubectl exec deploy/pi-web -- whoami`
+```
+nobody
+```
 
+### list the API token files:
+`kubectl exec deploy/pi-web -- ls -l /run/secrets/kubernetes.io/serviceaccount/token`
+```
+lrwxrwxrwx    1 root     root            12 Jan 11 14:52 /run/secrets/kubernetes.io/serviceaccount/token -> ..data/token
+```
 
+### print out the access token:
+`kubectl exec deploy/pi-web -- cat /run/secrets/kubernetes.io/serviceaccount/token`
+```
+eyJhbGciO...TolcEC3E6g
+```
 
+### update to the Pod spec in listing 16.3:
+`kubectl apply -f pi/update/deployment-no-serviceaccount-token.yaml`
+```
+deployment.apps/pi-web configured
+```
+
+### confirm the API token doesn’t exist:
+`kubectl exec deploy/pi-web -- cat /run/secrets/kubernetes.io/serviceaccount/token`
+```
+cat: can't open '/run/secrets/kubernetes.io/serviceaccount/token': No such file or directory
+command terminated with exit code 1
+```
+
+### confirm that the API server is still accessible:
+`kubectl exec deploy/pi-web -- sh -c 'curl -k -s https://kubernetes.default | grep message'`
+```
+sh: curl: not found
+command terminated with exit code 1
+```
+
+### get the URL, and check that the app still works:
+`kubectl get svc pi-web -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:8031'`
+```
+http://localhost:8031
+```
+```
+Pi.Web
+Source
+Pi
+To: 6 d.p.
+in: 16 ms.
+from: pi-web-846c676747-86tg9
+3.141592
+```
+Appending `?dp=50` to the URL returns `3.14159265358979323846264338327950288419716939937510`.
+
+## Section 16.3: Blocking and modifying workloads with webhooks
+
+### run the Pod to generate a certificate:
+`kubectl apply -f ./cert-generator.yaml`
+```
+deployment.apps/cert-generator created
+```
+
+### when the container is ready, the certificate is done:
+`kubectl wait --for=condition=ContainersReady pod -l app=cert-generator`
+```
+pod/cert-generator-54b58488d7-w8x5j condition met
+```
+
+### the Pod has deployed the cert as a TLS Secret:
+`kubectl get secret -l kiamol=ch16`
+```
+No resources found in default namespace.
+```
+
+### deploy the webhook server, using the TLS Secret:
+`kubectl apply -f admission-webhook/`
+```
+service/admission-webhook created
+deployment.apps/admission-webhook created
+```
+
+### print the CA certificate:
+`kubectl exec -it deploy/cert-generator -- cat ca.base64`
+```
+LS0tLS1CRUdJ...klDQVRFLS0tLS0K
+```
+
+### install the configuration object:
+`helm install validating-webhook admission-webhook/helm/validating-webhook/ --set caBundle=$(kubectl exec -it deploy/cert-generator -- cat ca.base64)`
+```
+Error: INSTALLATION FAILED: unable to build kubernetes objects from release manifest: resource mapping not found for name: "servicetokenpolicy" namespace: "" from "": no matches for kind "ValidatingWebhookConfiguration" in version "admissionregistration.k8s.io/v1beta1"
+ensure CRDs are installed first
+```
+
+### confirm it’s been created:
+`kubectl get validatingwebhookconfiguration`
+```
+No resources found
+```
+
+### try to deploy an app:
+`kubectl apply -f vweb/v1.yaml`
+```
+service/vweb-v1 created
+deployment.apps/vweb-v1 created
+```
+
+### check the webhook logs:
+`kubectl logs -l app=admission-webhook --tail 3`
+```
+Error from server (BadRequest): container "admission-webhook" in pod "admission-webhook-c7b7769c7-h9r8b" is waiting to start: ContainerCreating
+```
+
+### show the ReplicaSet status for the app:
+`kubectl get rs -l app=vweb-v1`
+```
+NAME                 DESIRED   CURRENT   READY   AGE
+vweb-v1-66c5db6dd8   1         1         1       28s
+```
+
+### show the details:
+`kubectl describe rs -l app=vweb-v1`
+```
+Name:           vweb-v1-66c5db6dd8
+Namespace:      default
+Selector:       app=vweb-v1,pod-template-hash=66c5db6dd8
+Labels:         app=vweb-v1
+                pod-template-hash=66c5db6dd8
+Annotations:    deployment.kubernetes.io/desired-replicas: 1
+                deployment.kubernetes.io/max-replicas: 2
+                deployment.kubernetes.io/revision: 1
+Controlled By:  Deployment/vweb-v1
+Replicas:       1 current / 1 desired
+Pods Status:    1 Running / 0 Waiting / 0 Succeeded / 0 Failed
+Pod Template:
+  Labels:  app=vweb-v1
+           pod-template-hash=66c5db6dd8
+  Containers:
+   web:
+    Image:        kiamol/ch09-vweb:v1
+    Port:         80/TCP
+    Host Port:    0/TCP
+    Environment:  <none>
+    Mounts:       <none>
+  Volumes:        <none>
+Events:
+  Type    Reason            Age   From                   Message
+  ----    ------            ----  ----                   -------
+  Normal  SuccessfulCreate  35s   replicaset-controller  Created pod: vweb-v1-66c5db6dd8-ms97t
+```
+
+### deploy the webhook configuration:
+`helm install mutating-webhook admission-webhook/helm/mutating-webhook/ --set caBundle=$(kubectl exec -it deploy/cert-generator -- cat ca.base64)`
+```
+Error: INSTALLATION FAILED: unable to build kubernetes objects from release manifest: resource mapping not found for name: "nonrootpolicy" namespace: "" from "": no matches for kind "MutatingWebhookConfiguration" in version "admissionregistration.k8s.io/v1beta1"
+ensure CRDs are installed first
+```
+
+### confirm it’s been created:
+`kubectl get mutatingwebhookconfiguration`
+Skipping...
+
+### deploy a new web app:
+`kubectl apply -f vweb/v2.yaml`
+
+### print the webhook server logs:
+`kubectl logs -l app=admission-webhook --tail 5`
+
+### show the status of the ReplicaSet:
+`kubectl get rs -l app=vweb-v2`
+
+### show the details:
+`kubectl describe pod -l app=vweb-v2`
+
+## Section 16.4: Controlling admission with Open Policy Agent
 
 
 
