@@ -6040,17 +6040,168 @@ Skipping...
 ## Section 16.4: Controlling admission with Open Policy Agent
 
 
+# Chapter 17: Securing resources with role-based access control
+
+## Section 17.1: How Kubernetes secures access to resources
+
+### switch to this chapter’s folder:
+`cd ch17`
+
+### PowerShell doesn't have a grep command; run this on Windows to add it:
+`. .\grep.ps1`
+Code:
+```PowerShell
+Set-Alias -Name grep -Value Select-String
+```
+
+### check that the API versions include RBAC:
+`kubectl api-versions | grep rbac`
+```
+rbac.authorization.k8s.io/v1
+```
+
+### show the admin cluster roles:
+`kubectl get clusterroles | grep admin`
+```
+admin                                                                  2023-11-08T19:29:56Z
+cluster-admin                                                          2023-11-08T19:29:56Z
+system:aggregate-to-admin                                              2023-11-08T19:29:56Z
+system:kubelet-api-admin                                               2023-11-08T19:29:56Z
+```
+
+### show the details of the cluster admin:
+`kubectl describe clusterrole cluster-admin`
+```
+Name:         cluster-admin
+Labels:       kubernetes.io/bootstrapping=rbac-defaults
+Annotations:  rbac.authorization.kubernetes.io/autoupdate: true
+PolicyRule:
+  Resources  Non-Resource URLs  Resource Names  Verbs
+  ---------  -----------------  --------------  -----
+  *.*        []                 []              [*]
+             [*]                []              [*]
+```
+
+### run the certificate generator: 
+`kubectl apply -f user-cert-generator.yaml`
+```
+serviceaccount/user-cert-generator created
+clusterrole.rbac.authorization.k8s.io/create-approve-csr created
+clusterrolebinding.rbac.authorization.k8s.io/user-cert-generator created
+pod/user-cert-generator created
+```
+
+### wait for the container to start:
+`kubectl wait --for=condition=ContainersReady pod user-cert-generator`
+```
+pod/user-cert-generator condition met
+```
+
+### print the logs:
+`kubectl logs user-cert-generator --tail 3`
+```
+----------------
+Cert generated: /certs/user.key and /certs/user.crt
+----------------
+```
+
+### copy the files onto your local disk:
+`kubectl cp user-cert-generator:/certs/user.key user.key`
+`kubectl cp user-cert-generator:/certs/user.crt user.crt`
+```bash
+tar: removing leading '/' from member names
+tar: removing leading '/' from member names
+λ cat user.crt
+-----BEGIN CERTIFICATE-----
+MIIDQj...xDW7X65sIQ==
+-----END CERTIFICATE-----
+λ cat user.key 
+-----BEGIN RSA PRIVATE KEY-----
+MIIEpgI...p6xmBDJ
+-----END RSA PRIVATE KEY-----
+λ ls -al
+...
+-rw-r--r--   1 paulkaefer  staff  1192 Jan 23 09:14 user.crt
+-rw-r--r--   1 paulkaefer  staff  1679 Jan 23 09:14 user.key
+```
+Figure 17.3: "The certificate is a standard X.509 certificate, issued by Kubernetes."
+
+### set the credentials for a new context from the client certificate:
+`kubectl config set-credentials reader --client-key=./user.key --client-certificate=./user.crt --embed-certs=true`
+```
+User "reader" set.
+```
+
+### set the cluster for the context:
+`kubectl config set-context reader --user=reader --cluster $(kubectl config view -o jsonpath='{.clusters[0].name}')`
+```
+Context "reader" created.
+```
+
+### try to deploy a Pod using the new context-- if your cluster is configured with authentication, this won't work, as the provider tries to authenticate:
+`kubectl apply -f sleep/ --context reader`
+```
+Error from server (Forbidden): error when retrieving current configuration of:
+Resource: "apps/v1, Resource=deployments", GroupVersionKind: "apps/v1, Kind=Deployment"
+Name: "sleep", Namespace: "default"
+from server for: "sleep/sleep.yaml": deployments.apps "sleep" is forbidden: User "reader@kiamol.net" cannot get resource "deployments" in API group "apps" in the namespace "default"
+```
+
+### impersonate the user to confirm their permissions:
+`kubectl get pods --as reader@kiamol.net`
+```
+Error from server (Forbidden): pods is forbidden: User "reader@kiamol.net" cannot list resource "pods" in API group "" in the namespace "default"
+```
+Phew; same errors as in the book.
 
 
+### deploy a sleep Pod as your normal user:
+`kubectl apply -f sleep/`
+```
+deployment.apps/sleep configured
+```
 
+### deploy the role binding so the reader can view the Pod:
+`kubectl apply -f role-bindings/reader-view-default.yaml`
+```
+rolebinding.rbac.authorization.k8s.io/reader-view created
+```
 
+### confirm the user sees Pods in the default namespace:
+`kubectl get pods --as reader@kiamol.net`
+```
+NAME                                READY   STATUS              RESTARTS       AGE
+admission-webhook-c7b7769c7-h9r8b   0/1     ContainerCreating   0              12d
+apod-api-5df694f6bb-xp6cs           1/1     Running             1 (10d ago)    12d
+apod-log-56455d84bf-zmbx8           1/1     Running             1 (21m ago)    12d
+apod-web-66c5b9d8c4-dwbxs           1/1     Running             1 (10d ago)    12d
+cert-generator-54b58488d7-w8x5j     1/1     Running             1 (10d ago)    12d
+nginx-stateful-0                    1/1     Running             6 (10d ago)    55d
+nginx-stateful-1                    1/1     Running             6 (10d ago)    55d
+nginx-stateful-2                    1/1     Running             6 (10d ago)    55d
+pi-web-846c676747-86tg9             1/1     Running             1 (10d ago)    12d
+sleep-568fb49bb7-vhgk2              1/1     Running             1 (10d ago)    12d
+todo-list-db-c7566bff7-h499l        1/1     Running             10 (10d ago)   46d
+todo-list-web-c659dfbc7-4rg2r       1/1     Running             11 (10d ago)   46d
+todo-list-web-c659dfbc7-hnnj6       1/1     Running             10 (10d ago)   46d
+user-cert-generator                 1/1     Running             0              11m
+vweb-v1-66c5db6dd8-ms97t            1/1     Running             1 (10d ago)    11d
+```
+Oops, I'm behind on cleanup!
 
+### confirm the user is blocked from the system namespace:
+`kubectl get pods -n kube-system --as reader@kiamol.net`
+```
+Error from server (Forbidden): pods is forbidden: User "reader@kiamol.net" cannot list resource "pods" in API group "" in the namespace "kube-system"
+```
 
+### confirm the user can’t delete Pods--this will fail:
+`kubectl delete -f sleep/ --as reader@kiamol.net`
+```
+Error from server (Forbidden): error when deleting "sleep/sleep.yaml": deployments.apps "sleep" is forbidden: User "reader@kiamol.net" cannot delete resource "deployments" in API group "apps" in the namespace "default"
+```
 
-
-
-
-
+## Section 17.2: Securing resource access within the cluster
 
 
 

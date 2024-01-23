@@ -107,6 +107,12 @@ Still not fully understanding, but https://en.wikipedia.org/wiki/Kubernetes#Daem
 * Figure 16.7: "If you’ve heard the phrase “secure by default,” it wasn’t said about Kubernetes."
 * Not totally sure I understand everything mentioned about webhooks...
 
+## Chapter 17
+* role-based access control (RBAC): says technically optional, but my assumption is it should be enabled if it isn't by default
+* Kubernetes does not authenticate end users (use OIDC, AD, or LDAP); we use certificates in this chapter
+* "If you're into OpenSSL and certificates..." Boy, am I!
+  * I ran `openssl x509 -in user.crt  -text -noout` and saw `Issuer: CN=kubernetes` and `Subject: C=UK, ST=LONDON, L=London, O=kiamol, CN=reader@kiamol.net`
+
 ## Once complete:
 - [ ] read https://en.wikipedia.org/wiki/Kubernetes
 - [ ] consider a certification. See page 8 for some info
