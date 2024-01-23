@@ -109,9 +109,14 @@ Still not fully understanding, but https://en.wikipedia.org/wiki/Kubernetes#Daem
 
 ## Chapter 17
 * role-based access control (RBAC): says technically optional, but my assumption is it should be enabled if it isn't by default
+  * n.b.: "resources need to exist before the rules can be applied"
 * Kubernetes does not authenticate end users (use OIDC, AD, or LDAP); we use certificates in this chapter
 * "If you're into OpenSSL and certificates..." Boy, am I!
   * I ran `openssl x509 -in user.crt  -text -noout` and saw `Issuer: CN=kubernetes` and `Subject: C=UK, ST=LONDON, L=London, O=kiamol, CN=reader@kiamol.net`
+* "best practice is to create a dedicated service account for each component"
+* `csr`: certificate-signing requests
+* This is interesting:
+> A common alternative is to misuse service accounts, creating a service account for every end user and distributing a token for authentication with kubectl. This approach doesn’t scale to hundreds of users, but it is a viable option if you don’t have an external authentication system and you want secure access to Kubernetes for a small number of users. You have to take a slightly quirky approach to groups, because you can’t create a group and add a service account to it. Instead, you need to treat namespaces as groups, create a namespace for each group you want, and put all the service accounts in that group. Figure 17.13 shows the setup.
 
 ## Once complete:
 - [ ] read https://en.wikipedia.org/wiki/Kubernetes

@@ -6203,9 +6203,222 @@ Error from server (Forbidden): error when deleting "sleep/sleep.yaml": deploymen
 
 ## Section 17.2: Securing resource access within the cluster
 
+### on Docker Desktop for Mac run this to fix the RBAC setup:
+`kubectl patch clusterrolebinding docker-for-desktop-binding --type=json --patch $'[{"op":"replace", "path":"/subjects/0/name", "value":"system:serviceaccounts:kube-system"}]'`
+```
+Error from server (NotFound): clusterrolebindings.rbac.authorization.k8s.io "docker-for-desktop-binding" not found
+```
+I wonder if this bug was fixed since the book was published...
+
+### OR on Docker Desktop for Windows:
+`kubectl patch clusterrolebinding docker-for-desktop-binding --type=json --patch '[{\"op\":\"replace\",\"path\":\"/subjects/0/name\", \"value\":\"system:serviceaccounts:kube-system\"}]'`
+ 
+### create the new namespace:
+`kubectl apply -f namespace.yaml`
+```
+namespace/kiamol-ch17 created
+```
+ 
+### list service accounts:
+`kubectl get serviceaccounts -n kiamol-ch17`
+```
+NAME      SECRETS   AGE
+default   0         9s
+```
+ 
+### check permissions for your own account:
+`kubectl auth can-i "*" "*"`
+```
+yes
+```
+ 
+### check permissions for the new service account:
+`kubectl auth can-i "*" "*" --as system:serviceaccount:kiamol-ch17:default`
+```
+no
+```
+ 
+`kubectl auth can-i get pods -n kiamol-ch17 --as system:serviceaccount:kiamol-ch17:default`
+```
+no
+```
+
+### run a can-i check inside the certificate generator Pod:
+`kubectl exec user-cert-generator -- kubectl auth can-i create csr --all-namespaces`
+```
+yes
+```
+ 
+### use impersonation for the same check:
+`kubectl auth can-i create csr -A --as system:serviceaccount:default:user-cert-generator`
+```
+yes
+```
+ 
+### confirm the new service account doesn’t have the permission:
+`kubectl auth can-i create csr -A --as system:serviceaccount:kiamol-ch17:default`
+```
+no
+```
+
+
+### deploy the app and the RBAC rules:
+`kubectl apply -f kube-explorer/`
+```
+serviceaccount/kube-explorer created
+deployment.apps/kube-explorer created
+role.rbac.authorization.k8s.io/default-pod-reader created
+rolebinding.rbac.authorization.k8s.io/kube-explorer-default created
+service/kube-explorer created
+```
+ 
+### wait for the Pod:
+`kubectl wait --for=condition=ContainersReady pod -l app=kube-explorer`
+```
+pod/kube-explorer-5dd5fc5b97-zmzqb condition met
+```
+ 
+### get the URL for the app:
+`kubectl get svc kube-explorer -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:8019'`
+```
+http://localhost:8019
+```
+ 
+### browse to the app, and confirm you can view and delete Pods in the default namespace; then add ?ns=kube-system to the URL, and you’ll see an error.
+Yes; `http://localhost:8019/ServiceAccounts` gives an error though, as does `http://localhost:8019/?ns=kube-system` (as expected).
+
+If I delete, e.g., the pod named `apod-api-5df694f6bb-qj2q7` from Image `kiamol/ch14-image-of-the-day`, I see a new one spun up almost immediately: `apod-api-5df694f6bb-4qbsc`.
 
 
 
+### apply the new role and binding
+`kubectl apply -f kube-explorer/update/rbac-with-kube-system.yaml`
+```
+role.rbac.authorization.k8s.io/system-pod-reader created
+rolebinding.rbac.authorization.k8s.io/kube-explorer-system created
+```
+ 
+### refresh the explorer app with the path /?ns=kube-system. you can see the Pods now, but you can’t delete them.
+Correct:
+![](./ch17/KubeExplorer.png)
+
+
+### print the label value on the namespace:
+`kubectl get ns kiamol-ch17 --show-labels`
+```
+NAME          STATUS   AGE   LABELS
+kiamol-ch17   Active   12m   kiamol=ch17,kubernetes.io/metadata.name=kiamol-ch17
+```
+ 
+### deploy the to-do list app:
+`kubectl apply -f todo-list/`
+```
+serviceaccount/todo-web created
+deployment.apps/todo-web created
+clusterrole.rbac.authorization.k8s.io/ch17-reader created
+clusterrolebinding.rbac.authorization.k8s.io/todo-web-reader created
+serviceaccount/todo-web unchanged
+deployment.apps/todo-web configured
+service/todo-web created
+```
+ 
+### wait for the Pod to start:
+`kubectl wait --for=condition=ContainersReady pod -l app=todo-web -n kiamol-ch17`
+```
+pod/todo-web-5ccff57bf7-67xdw condition met
+```
+ 
+### print the logs of the init container:
+`kubectl logs -l app=todo-web -c configurator --tail 1 -n kiamol-ch17`
+```
+** Namespace label: ch17. Written to config file **
+```
+ 
+### get the URL, and browse to the app:
+`kubectl get svc todo-web -n kiamol-ch17 -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:8020'`
+```
+http://localhost:8020
+```
+> This page isn’t working
+
+## Section 17.3: Binding roles to groups of users and service accounts
+
+### create two users:
+`kubectl apply -f user-groups/`
+```
+pod/sre-user created
+pod/test-user created
+```
+ 
+### confirm that the SRE can’t delete Pods:
+`kubectl exec sre-user -- kubectl auth can-i delete pods`
+```
+no
+command terminated with exit code 1
+```
+ 
+### print the username and group in the certificate:
+`kubectl exec sre-user -- sh -c 'openssl x509 -text -noout -in /certs/user.crt | grep Subject:'`
+```
+        Subject: C = UK, ST = LONDON, L = London, O = sre, CN = sre1
+```
+ 
+### confirm the test user can’t read Pod logs:
+`kubectl exec test-user -- kubectl auth can-i get pod/logs`
+```
+no
+command terminated with exit code 1
+```
+ 
+### print this certificate’s details:
+`kubectl exec test-user -- sh -c 'openssl x509 -text -noout -in /certs/user.crt | grep Subject:'`
+```
+        Subject: C = UK, ST = LONDON, L = London, O = test, CN = tester1
+```
+
+### apply the roles and bindings:
+`kubectl apply -f user-groups/bindings/`
+```
+clusterrolebinding.rbac.authorization.k8s.io/sre-view-cluster created
+rolebinding.rbac.authorization.k8s.io/sre-edit-ch17 created
+clusterrole.rbac.authorization.k8s.io/logs-reader created
+clusterrolebinding.rbac.authorization.k8s.io/test-logs-cluster created
+```
+
+### confirm the SRE cannot delete in the default namespace:
+`kubectl exec sre-user -- kubectl auth can-i delete pods`
+```
+no
+command terminated with exit code 1
+```
+ 
+### confirm they can delete in the ch17 namespace:
+`kubectl exec sre-user -- kubectl auth can-i delete pods -n kiamol-ch17`
+```
+yes
+```
+ 
+### confirm the tester can’t list Pods:
+`kubectl exec test-user -- kubectl get pods`
+```
+Error from server (Forbidden): pods is forbidden: User "tester1" cannot list resource "pods" in API group "" in the namespace "default"
+command terminated with exit code 1
+```
+ 
+### confirm the tester can read the logs for a known Pod:
+`kubectl exec test-user -- kubectl logs test-user --tail 10`
+```
+certificatesigningrequest.certificates.k8s.io/tester1 created
+certificatesigningrequest.certificates.k8s.io/tester1 approved
+** Cert approved.
+----------------
+Cert generated: /certs/user.key and /certs/user.crt
+----------------
+User "tester1" set.
+Context "tester1" created.
+Switched to context "tester1".
+** Using context for user: tester1; group: test
+```
 
 
 
