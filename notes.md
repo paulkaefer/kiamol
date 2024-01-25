@@ -122,6 +122,9 @@ Still not fully understanding, but https://en.wikipedia.org/wiki/Kubernetes#Daem
 > Figure 17.13 Service accounts have tokens and groups so they can be misused as user accounts.
 * links: https://jwt.io/, https://github.com/docker/for-mac/issues/4774, [Krew (plugin manager)](https://krew.sigs.k8s.io/docs/user-guide/setup/install)
 
+## Chapter 18
+* "The best way to learn about all of the Kubernetes components is to install a cluster from scratch, and that’s what you’ll do in this chapter."
+
 ## Once complete:
 - [ ] read https://en.wikipedia.org/wiki/Kubernetes
 - [ ] consider a certification. See page 8 for some info
