@@ -6647,7 +6647,7 @@ Error: `brew cask` is no longer a `brew` command. Use `brew <command> --cask` in
 ```
 ...so I ran `brew install --cask vagrant` instead!
 
-# Vagrant packages VM images into "boxes"; download a Linux box--this will ask you to choose a provider, and you should select your VM runtime:
+### Vagrant packages VM images into "boxes"; download a Linux box--this will ask you to choose a provider, and you should select your VM runtime:
 `vagrant box add bento/ubuntu-20.04`
 box: URL: https://vagrantcloud.com/api/v2/vagrant/bento/ubuntu-20.04; see also https://vagrantcloud.com/bento/boxes/ubuntu-20.04/versions/202309.09.0/providers/parallels/unknown/vagrant.box
 Installed Parallels (trial), too.
@@ -6656,10 +6656,28 @@ Unfortunately, getting:
 SSL certificate problem: self-signed certificate in certificate chain
 ```
 
-# if you want to add Windows, download a Windows box:
-vagrant box add kiamol/windows-2019 
+### if you want to add Windows, download a Windows box:
+`vagrant box add kiamol/windows-2019`
 
+On Windows:
+```bash
+$ vagrant box add bento/ubuntu-20.04
+==> box: Loading metadata for box 'bento/ubuntu-20.04'
+    box: URL: https://vagrantcloud.com/api/v2/vagrant/bento/ubuntu-20.04
+This box can work with multiple providers! The providers that it
+can work with are listed below. Please review the list and choose
+the provider you will be working with.
 
+1) parallels
+2) virtualbox
+3) vmware_desktop
+
+Enter your choice: 2
+==> box: Adding box 'bento/ubuntu-20.04' (v202309.09.0) for provider: virtualbox
+    box: Downloading: https://vagrantcloud.com/bento/boxes/ubuntu-20.04/versions/202309.09.0/providers/virtualbox/unknown/vagrant.box
+    box:
+==> box: Successfully added box 'bento/ubuntu-20.04' (v202309.09.0) for 'virtualbox'!
+```
 
 
 

@@ -372,3 +372,7 @@ MigrationBackup/
 .ionide/
 ch10/pi/charts/vweb-2.0.0.tar.gz
 ch17/sa-token
+
+# Notepad++
+*.bak
+
