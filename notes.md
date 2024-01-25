@@ -118,6 +118,8 @@ Still not fully understanding, but https://en.wikipedia.org/wiki/Kubernetes#Daem
 * This is interesting:
 > A common alternative is to misuse service accounts, creating a service account for every end user and distributing a token for authentication with kubectl. This approach doesn’t scale to hundreds of users, but it is a viable option if you don’t have an external authentication system and you want secure access to Kubernetes for a small number of users. You have to take a slightly quirky approach to groups, because you can’t create a group and add a service account to it. Instead, you need to treat namespaces as groups, create a namespace for each group you want, and put all the service accounts in that group. Figure 17.13 shows the setup.
   * illustrated example of that:
+![](./attachments/Figure_17-13.jpg)
+> Figure 17.13 Service accounts have tokens and groups so they can be misused as user accounts.
 
 ## Once complete:
 - [ ] read https://en.wikipedia.org/wiki/Kubernetes
