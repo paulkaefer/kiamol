@@ -6623,10 +6623,41 @@ serviceaccount "rbac-tools" deleted
 serviceaccount "user-cert-generator" deleted
 ```
 
+Ran cleanup steps & then:
+```bash
+λ kubectl get all
+NAME                   READY   STATUS    RESTARTS   AGE
+pod/nginx-stateful-0   1/1     Running   0          17m
+pod/nginx-stateful-1   1/1     Running   0          17m
+pod/nginx-stateful-2   1/1     Running   0          17m
+
+NAME                 TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)   AGE
+service/kubernetes   ClusterIP   10.96.0.1    <none>        443/TCP   17m
+
+NAME                              READY   AGE
+statefulset.apps/nginx-stateful   3/3     77d
+```
+
 # Chapter 18: Deploying Kubernetes: Multinode and multiarchitecture clusters
+## Section 18.1: What’s inside a Kubernetes cluster?
 
+### install Vagrant-browse to https://www.vagrantup.com to download OR on Windows you can use: choco install vagrant OR on macOS you can use: brew cask install vagrant
+```
+Error: `brew cask` is no longer a `brew` command. Use `brew <command> --cask` instead.
+```
+...so I ran `brew install --cask vagrant` instead!
 
+# Vagrant packages VM images into "boxes"; download a Linux box--this will ask you to choose a provider, and you should select your VM runtime:
+`vagrant box add bento/ubuntu-20.04`
+box: URL: https://vagrantcloud.com/api/v2/vagrant/bento/ubuntu-20.04; see also https://vagrantcloud.com/bento/boxes/ubuntu-20.04/versions/202309.09.0/providers/parallels/unknown/vagrant.box
+Installed Parallels (trial), too.
+Unfortunately, getting:
+```
+SSL certificate problem: self-signed certificate in certificate chain
+```
 
+# if you want to add Windows, download a Windows box:
+vagrant box add kiamol/windows-2019 
 
 
 
