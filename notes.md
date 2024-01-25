@@ -125,6 +125,7 @@ Still not fully understanding, but https://en.wikipedia.org/wiki/Kubernetes#Daem
 ## Chapter 18
 * "The best way to learn about all of the Kubernetes components is to install a cluster from scratch, and that’s what you’ll do in this chapter."
 * Kubernetes *control plane*: the management side of the cluster (receives `kubectl` deployment requests)
+* Lots of keywords defined, like *kubelet* (background agent)
 
 ## Once complete:
 - [ ] read https://en.wikipedia.org/wiki/Kubernetes

@@ -6679,7 +6679,80 @@ Enter your choice: 2
 ==> box: Successfully added box 'bento/ubuntu-20.04' (v202309.09.0) for 'virtualbox'!
 ```
 
+```bash
+$ vagrant box add kiamol/windows-2019
+==> box: Loading metadata for box 'kiamol/windows-2019'
+    box: URL: https://vagrantcloud.com/api/v2/vagrant/kiamol/windows-2019
+This box can work with multiple providers! The providers that it
+can work with are listed below. Please review the list and choose
+the provider you will be working with.
+
+1) hyperv
+2) virtualbox
+
+Enter your choice: 2
+==> box: Adding box 'kiamol/windows-2019' (v0.0.1) for provider: virtualbox
+    box: Downloading: https://vagrantcloud.com/kiamol/boxes/windows-2019/versions/0.0.1/providers/virtualbox/unknown/vagrant.box
+    box:
+==> box: Successfully added box 'kiamol/windows-2019' (v0.0.1) for 'virtualbox'!
+```
+
+## Section 18.2: Initializing the control plane
+
+### switch to this chapter’s source:
+`cd ch18`
+
+### use Vagrant to start a new VM--depending on your VM runtime, you’ll get prompts asking you to choose a network and to
+### provide your credentials to mount folders from your machine: 
+`vagrant up kiamol-control`
+```bash
+$ vagrant up kiamol-control
+Bringing machine 'kiamol-control' up with 'virtualbox' provider...
+==> kiamol-control: Importing base box 'bento/ubuntu-20.04'...
+==> kiamol-control: Matching MAC address for NAT networking...
+==> kiamol-control: Checking if box 'bento/ubuntu-20.04' version '202309.09.0' is up to date...
+==> kiamol-control: Setting the name of the VM: kiamol-control
+Vagrant is currently configured to create VirtualBox synced folders with
+the `SharedFoldersEnableSymlinksCreate` option enabled. If the Vagrant
+guest is not trusted, you may want to disable this option. For more
+information on this option, please refer to the VirtualBox manual:
+
+  https://www.virtualbox.org/manual/ch04.html#sharedfolders
+
+This option can be disabled globally with an environment variable:
+
+  VAGRANT_DISABLE_VBOXSYMLINKCREATE=1
+
+or on a per folder basis within the Vagrantfile:
+
+  config.vm.synced_folder '/host/path', '/guest/path', SharedFoldersEnableSymlinksCreate: false
+==> kiamol-control: Clearing any previously set network interfaces...
+A host only network interface you're attempting to configure via DHCP
+already has a conflicting host only adapter with DHCP enabled. The
+DHCP on this adapter is incompatible with the DHCP settings. Two
+host only network interfaces are not allowed to overlap, and each
+host only network interface can have only one DHCP server. Please
+reconfigure your host only network or remove the virtual machine
+using the other host only network.
+```
+Deleted the existing host-only network from VirtualBox's Network Manager. Per suggestion of ChatGPT when I told it about the above message.
+
+Then tried the above again:
 
 
+### connect to the VM:
+`vagrant ssh kiamol-control`
+
+### this folder maps the ch18 source folder:
+cd /vagrant/setup
+
+### make the install script executable, and run it:
+sudo chmod +x linux-setup.sh && sudo ./linux-setup.sh
+
+### confirm Docker has been installed:
+which docker
+
+### confirm all the Kubernetes tools have been installed:
+ls /usr/bin/kube*
 
 
