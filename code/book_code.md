@@ -6420,17 +6420,208 @@ Switched to context "tester1".
 ** Using context for user: tester1; group: test
 ```
 
+Faking an authentication system with service accounts, tokens, and namespaces:
+### create namespaces, service accounts, and tokens:
+`kubectl apply -f user-groups/service-accounts/`
+```
+namespace/kiamol-authn-sre created
+serviceaccount/sre2 created
+secret/sre2-sa-token created
+namespace/kiamol-authn-test created
+serviceaccount/tester2 created
+secret/tester2-sa-token created
+```
+
+### apply bindings to the groups:
+`kubectl apply -f user-groups/service-accounts/role-bindings/`
+```
+clusterrolebinding.rbac.authorization.k8s.io/sre-sa-view-cluster created
+rolebinding.rbac.authorization.k8s.io/sre-sa-edit-ch17 created
+clusterrolebinding.rbac.authorization.k8s.io/test-sa-logs-cluster created
+```
+
+### confirm the SRE group has view access across the cluster:
+`kubectl get clusterrolebinding sre-sa-view-cluster -o custom-columns='ROLE:.roleRef.name,SUBJECT KIND:.subjects[0].kind,SUBJECT NAME:.subjects[0].name'`
+```
+ROLE   SUBJECT KIND   SUBJECT NAME
+view   Group          system:serviceaccounts:kiamol-authn-sre
+```
+
+Skipping a bit, but wanted to look at this:
+### add a Base64 command if you’re using Windows:
+`. .\base64.ps1`
+```PowerShell
+function Convert-ToBase64 {
+  param (
+    [parameter(ValueFromPipeline)]
+    [string] $text,
+    [switch] $d
+  )
+  if ($d){
+    [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($text))
+  }
+  else {
+    [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($text))
+  }
+}
+
+Set-Alias base64  Convert-ToBase64
+```
 
 
+## Section 17.4: Discovering and auditing permissions with plugins
+
+### run a Pod with kubectl and Krew already installed:
+`kubectl apply -f rbac-tools/`
+```
+serviceaccount/rbac-tools created
+deployment.apps/rbac-tools created
+clusterrolebinding.rbac.authorization.k8s.io/rbac-tools-admin created
+```
+
+### wait for the Pod:
+`kubectl wait --for=condition=ContainersReady pod -l app=rbac-tools`
+```
+pod/rbac-tools-66864c5489-vwrm2 condition met
+```
+
+### connect to the container:
+`kubectl exec -it deploy/rbac-tools -- sh`
+ 
+### install the who-can plugin:
+`kubectl krew install who-can`
+```bash
+λ kubectl exec -it deploy/rbac-tools -- sh
+/ # kubectl krew install who-can
+Updated the local copy of plugin index.
+  New plugins available:
+    * aks
+    * autons
+    * browse-pvc
+    * clog
+    * community-images
+    * crane
+    * ctr
+    * debug-pdb
+    * execws
+    * foreach
+    * gke-policy
+    * insider
+    * klock
+    * kluster-capacity
+    * kopilot
+    * kubescape
+    * mapr-ticket
+    * marvin
+    * mayastor
+    * netscaler
+    * node-ssm
+    * nodegizmo
+    * nodepools
+    * oomd
+    * permissions
+    * plogs
+    * shell-ctx
+    * subm
+    * ttsum
+    * unlimited
+  Upgrades available for installed plugins:
+    * krew v0.4.3 -> v0.4.4
+Installing plugin: who-can
+Installed plugin: who-can
+\
+ | Use this plugin:
+ |  kubectl who-can
+ | Documentation:
+ |  https://github.com/aquasecurity/kubectl-who-can
+ | Caveats:
+ | \
+ |  | The plugin requires the rights to list (Cluster)Role and (Cluster)RoleBindings.
+ | /
+/
+WARNING: You installed plugin "who-can" from the krew-index plugin repository.
+   These plugins are not audited for security by the Krew maintainers.
+   Run them at your own risk.
+A newer version of krew is available (v0.4.3 -> v0.4.4).
+Run "kubectl krew upgrade" to get the newest version!
+/ # kubectl krew upgrade
+Updated the local copy of plugin index.
+Upgrading plugin: krew
+Upgraded plugin: krew
+Upgrading plugin: who-can
+Skipping plugin who-can, it is already on the newest version
+/ # 
+```
+ 
+### list who has access to the todo-list ConfigMap:
+`kubectl who-can get configmap todo-web-config`
+```
+ROLEBINDING  NAMESPACE  SUBJECT            TYPE  SA-NAMESPACE
+reader-view  default    reader@kiamol.net  User  
+
+CLUSTERROLEBINDING                           SUBJECT                                  TYPE            SA-NAMESPACE
+cluster-admin                                system:masters                           Group           
+rbac-tools-admin                             rbac-tools                               ServiceAccount  default
+sre-sa-view-cluster                          system:serviceaccounts:kiamol-authn-sre  Group           
+sre-view-cluster                             sre                                      Group           
+storage-provisioner                          storage-provisioner                      ServiceAccount  kube-system
+system:controller:generic-garbage-collector  generic-garbage-collector                ServiceAccount  kube-system
+system:controller:namespace-controller       namespace-controller                     ServiceAccount  kube-system
+system:kube-controller-manager               system:kube-controller-manager           User            
+```
 
 
+### install the plugin:
+`kubectl krew install access-matrix`
+```bash
+λ kubectl exec -it deploy/rbac-tools -- sh
+/ # kubectl krew install access-matrix
+Updated the local copy of plugin index.
+Installing plugin: access-matrix
+W0125 15:07:52.967485     103 install.go:164] failed to install plugin "access-matrix": plugin "access-matrix" does not offer installation for this platform
+failed to install some plugins: [access-matrix]: plugin "access-matrix" does not offer installation for this platform
+```
 
+### print the matrix for Pods:
+`kubectl access-matrix for pods -n default`
+```
+error: unknown command "access-matrix" for "kubectl"
+```
 
+### the print the matrix for the to-do list ConfigMap:
+`kubectl access-matrix for configmap todo-web-config -n default`
+Same error.
 
+### install the plugin:
+`kubectl krew install rbac-lookup`
+Also failed.
 
-
-
-
+### cleanup
+`kubectl delete all,ns,rolebinding,clusterrolebinding,role,clusterrole,serviceaccount -l kiamol=ch17`
+```
+pod "sre-user" deleted
+pod "test-user" deleted
+pod "user-cert-generator" deleted
+namespace "kiamol-authn-sre" deleted
+namespace "kiamol-authn-test" deleted
+namespace "kiamol-ch17" deleted
+rolebinding.rbac.authorization.k8s.io "kube-explorer-default" deleted
+rolebinding.rbac.authorization.k8s.io "reader-view" deleted
+clusterrolebinding.rbac.authorization.k8s.io "rbac-tools-admin" deleted
+clusterrolebinding.rbac.authorization.k8s.io "sre-sa-view-cluster" deleted
+clusterrolebinding.rbac.authorization.k8s.io "sre-view-cluster" deleted
+clusterrolebinding.rbac.authorization.k8s.io "test-logs-cluster" deleted
+clusterrolebinding.rbac.authorization.k8s.io "test-sa-logs-cluster" deleted
+clusterrolebinding.rbac.authorization.k8s.io "todo-web-reader" deleted
+clusterrolebinding.rbac.authorization.k8s.io "user-cert-generator" deleted
+role.rbac.authorization.k8s.io "default-pod-reader" deleted
+clusterrole.rbac.authorization.k8s.io "ch17-reader" deleted
+clusterrole.rbac.authorization.k8s.io "create-approve-csr" deleted
+clusterrole.rbac.authorization.k8s.io "logs-reader" deleted
+serviceaccount "kube-explorer" deleted
+serviceaccount "rbac-tools" deleted
+serviceaccount "user-cert-generator" deleted
+```
 
 
 

@@ -120,6 +120,7 @@ Still not fully understanding, but https://en.wikipedia.org/wiki/Kubernetes#Daem
   * illustrated example of that:
 ![](./attachments/Figure_17-13.jpg)
 > Figure 17.13 Service accounts have tokens and groups so they can be misused as user accounts.
+* links: https://jwt.io/, https://github.com/docker/for-mac/issues/4774, [Krew (plugin manager)](https://krew.sigs.k8s.io/docs/user-guide/setup/install)
 
 ## Once complete:
 - [ ] read https://en.wikipedia.org/wiki/Kubernetes
