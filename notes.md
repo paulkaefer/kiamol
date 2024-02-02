@@ -128,6 +128,9 @@ Still not fully understanding, but https://en.wikipedia.org/wiki/Kubernetes#Daem
 * Lots of keywords defined, like *kubelet* (background agent)
 
 ## Chapter 19
+* how to direct Pods to specific nodes & schedule placement of pods w.r.t. other pods
+* use taints to identify nodes that are different from the rest
+* "Topology describes the physical layout of your cluster..." -- I wonder if there are tools that help visualize this. Generating something like one of the figures from this book.
 
 ## Once complete:
 - [ ] read https://en.wikipedia.org/wiki/Kubernetes

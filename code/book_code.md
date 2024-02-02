@@ -6794,15 +6794,202 @@ ls /usr/bin/kube*
 
 # Chapter 19: Controlling workload placement and automatic scaling
 
+## Section 19.1: How Kubernetes schedules workloads
+
+### switch to the chapter’s source:
+`cd ch19`
+
+### print the taints already on the nodes:
+`kubectl get nodes -o=jsonpath='{range .items[*]}{.metadata.name}{.spec.taints[*].key}{end}'`
+```
+docker-desktop
+```
+
+### deploy the sleep app:
+`kubectl apply -f sleep/sleep.yaml`
+```
+deployment.apps/sleep created
+```
+
+### add a taint to all nodes:
+`kubectl taint nodes --all kiamol-disk=hdd:NoSchedule`
+```
+node/docker-desktop tainted
+```
+
+### confirm that the sleep Pod is still running:
+`kubectl get pods -l app=sleep`
+```
+NAME                     READY   STATUS    RESTARTS   AGE
+sleep-568fb49bb7-5zhdz   1/1     Running   0          18s
+```
+
+### create a Pod without a toleration:
+`kubectl apply -f sleep/sleep2.yaml`
+```
+deployment.apps/sleep2 created
+```
+
+### confirm the Pod is pending:
+`kubectl get po -l app=sleep2`
+```
+NAME                     READY   STATUS              RESTARTS   AGE
+sleep2-cbc87cc95-clq7b   0/1     Pending             0          0s
+```
+ 
+### add the toleration from listing 19.1:
+`kubectl apply -f sleep/update/sleep2-with-tolerations.yaml`
+I ran `kubectl get po -l app=sleep2` a few times afterwards:
+```
+deployment.apps/sleep2 configured
+
+NAME                     READY   STATUS              RESTARTS   AGE
+sleep2-c6699d749-66zhd   0/1     ContainerCreating   0          0s
+sleep2-cbc87cc95-clq7b   0/1     Pending             0          0s
+
+NAME                     READY   STATUS    RESTARTS   AGE
+sleep2-c6699d749-66zhd   1/1     Running   0          5s
+
+NAME                     READY   STATUS    RESTARTS   AGE
+sleep2-c6699d749-66zhd   1/1     Running   0          93s
+
+```
+
+### show the node’s labels:
+`kubectl get nodes --show-labels`
+```
+NAME             STATUS   ROLES           AGE   VERSION   LABELS
+docker-desktop   Ready    control-plane   85d   v1.28.2   beta.kubernetes.io/arch=arm64,beta.kubernetes.io/os=linux,kubernetes.io/arch=arm64,kubernetes.io/hostname=docker-desktop,kubernetes.io/os=linux,node-role.kubernetes.io/control-plane=,node.kubernetes.io/exclude-from-external-load-balancers=
+```
+
+### update the Deployment with an incorrect node selector:
+`kubectl apply -f sleep/update/sleep2-with-nodeSelector.yaml`
+```
+deployment.apps/sleep2 configured
+```
+
+### print the Pod status:
+`kubectl get pods -l app=sleep2`
+```
+NAME                      READY   STATUS    RESTARTS   AGE
+sleep2-59749677c4-h2mjx   0/1     Pending   0          10s
+sleep2-c6699d749-66zhd    1/1     Running   0          11m
+```
+
+## Section 19.2: Directing Pod placement with affinity and antiaffinity
+
+### deploy the spec from listing 19.3:
+`kubectl apply -f sleep/update/sleep2-with-nodeAffinity-required.yaml`
+```
+Warning: spec.template.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[1].matchExpressions[0].key: beta.kubernetes.io/arch is deprecated since v1.14; use "kubernetes.io/arch" instead
+deployment.apps/sleep2 configured
+```
+Hmm, why does it have the line with `- key: beta.kubernetes.io/arch` anyway?
+
+### confirm that the new Pod runs:
+`kubectl get po -l app=sleep2`
+```bash
+λ kubectl get po -l app=sleep2
+NAME                      READY   STATUS    RESTARTS   AGE
+sleep2-5455b88bfd-qj92k   0/1     Pending   0          26s
+sleep2-c6699d749-66zhd    1/1     Running   0          14m
+```
 
 
+### remove the taint we applied to simplify things:
+`kubectl taint nodes --all kiamol-disk=hdd:NoSchedule-` <-- note the `-` at the end removes the taint
+```
+node/docker-desktop untainted
+```
 
+### deploy the random-number app:
+`kubectl apply -f numbers/`
+```
+service/numbers-api created
+deployment.apps/numbers-api created
+service/numbers-web created
+deployment.apps/numbers-web created
+```
 
+### confirm that both Pods are scheduled on the same node:
+`kubectl get pods -l app=numbers -o wide`
+```
+NAME                           READY   STATUS    RESTARTS   AGE   IP          NODE             NOMINATED NODE   READINESS GATES
+numbers-api-7bc99b6f7d-rgfzd   1/1     Running   0          16s   10.1.2.64   docker-desktop   <none>           <none>
+numbers-web-799c996c4d-x9ckn   1/1     Running   0          16s   10.1.2.65   docker-desktop   <none>           <none>
+```
 
+### add an antiaffinity rule to the API Pod:
+`kubectl apply -f numbers/update/api.yaml`
+```
+deployment.apps/numbers-api configured
+```
+ 
+### print the API Pod status:
+`kubectl get pods -l app=numbers`
+```
+NAME                           READY   STATUS    RESTARTS   AGE
+numbers-api-7bc99b6f7d-rgfzd   1/1     Running   0          75s
+numbers-api-86c7777dcd-cbkr2   0/1     Pending   0          7s
+numbers-web-799c996c4d-x9ckn   1/1     Running   0          75s
+```
+ 
+### scale up the API and the web components:
+`kubectl scale deploy/numbers-api --replicas 3`
+`kubectl scale deploy/numbers-web --replicas 3`
+```
+deployment.apps/numbers-api scaled
+deployment.apps/numbers-web scaled
+```
+ 
+### print all the web and API Pod statuses:
+`kubectl get pods -l app=numbers`
+```
+NAME                           READY   STATUS    RESTARTS   AGE
+numbers-api-7bc99b6f7d-gk9dk   1/1     Running   0          16s
+numbers-api-7bc99b6f7d-rgfzd   1/1     Running   0          101s
+numbers-api-86c7777dcd-cbkr2   0/1     Pending   0          33s
+numbers-api-86c7777dcd-kdcln   0/1     Pending   0          16s
+numbers-web-799c996c4d-qtdf7   1/1     Running   0          7s
+numbers-web-799c996c4d-x9ckn   1/1     Running   0          101s
+numbers-web-799c996c4d-zrh79   1/1     Running   0          7s
+```
 
+## Section 19.3: Controlling capacity with automatic scaling
 
+### top shows resource usage if you have metrics-server installed:
+`kubectl top nodes`
+```
+error: Metrics API not available
+```
 
+### if you get an error about "heapster," you need to install metrics-server:
+`kubectl apply -f metrics-server/`
+```
+clusterrole.rbac.authorization.k8s.io/system:aggregated-metrics-reader created
+clusterrolebinding.rbac.authorization.k8s.io/metrics-server:system:auth-delegator created
+rolebinding.rbac.authorization.k8s.io/metrics-server-auth-reader created
+serviceaccount/metrics-server created
+deployment.apps/metrics-server created
+service/metrics-server created
+clusterrole.rbac.authorization.k8s.io/system:metrics-server created
+clusterrolebinding.rbac.authorization.k8s.io/system:metrics-server created
+error: resource mapping not found for name: "v1beta1.metrics.k8s.io" namespace: "" from "metrics-server/components-v0.3.6.yaml": no matches for kind "APIService" in version "apiregistration.k8s.io/v1beta1"
+ensure CRDs are installed first
+```
 
+### wait for it to spin up:
+`kubectl wait --for=condition=ContainersReady pod -l k8s-app=metrics-server -n kube-system`
+Waiting...
+
+### it takes a minute or so for collection to start:
+sleep 60
+
+### print the metric-server Pod logs:
+kubectl logs -n kube-system -l k8s-app=metrics-server --tail 2
+
+### look at node usage again:
+kubectl top nodes
 
 
 
