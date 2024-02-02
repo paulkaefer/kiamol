@@ -6980,17 +6980,24 @@ ensure CRDs are installed first
 
 ### wait for it to spin up:
 `kubectl wait --for=condition=ContainersReady pod -l k8s-app=metrics-server -n kube-system`
-Waiting...
+Waited about a minute, then:
+```
+error: timed out waiting for the condition on pods/metrics-server-db5ff57f6-dvsh2
+```
 
 ### it takes a minute or so for collection to start:
-sleep 60
+`sleep 60`
 
 ### print the metric-server Pod logs:
 kubectl logs -n kube-system -l k8s-app=metrics-server --tail 2
 
 ### look at node usage again:
-kubectl top nodes
-
+`kubectl top nodes`
+```
+error: Metrics API not available
+```
+Shame. The book has:
+![](./ch19/Figure_19-9.jpg)
 
 
 
