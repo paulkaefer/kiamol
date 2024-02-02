@@ -6792,3 +6792,45 @@ which docker
 ls /usr/bin/kube*
 
 
+# Chapter 19: Controlling workload placement and automatic scaling
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

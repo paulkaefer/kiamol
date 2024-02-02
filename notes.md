@@ -127,6 +127,8 @@ Still not fully understanding, but https://en.wikipedia.org/wiki/Kubernetes#Daem
 * Kubernetes *control plane*: the management side of the cluster (receives `kubectl` deployment requests)
 * Lots of keywords defined, like *kubelet* (background agent)
 
+## Chapter 19
+
 ## Once complete:
 - [ ] read https://en.wikipedia.org/wiki/Kubernetes
 - [ ] consider a certification. See page 8 for some info
