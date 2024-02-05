@@ -131,6 +131,12 @@ Still not fully understanding, but https://en.wikipedia.org/wiki/Kubernetes#Daem
 * how to direct Pods to specific nodes & schedule placement of pods w.r.t. other pods
 * use taints to identify nodes that are different from the rest
 * "Topology describes the physical layout of your cluster..." -- I wonder if there are tools that help visualize this. Generating something like one of the figures from this book.
+* In section 19.3... ok, so if the current job is taking more resources than it needs & another pod is added... that works if the code is parallelizable, right? Just throwing resources doesn't always make a job go faster.
+* *priority class* of the Pod -- an integer up to one billion!
+* `kind/print-memory.sh` is a neat little script
+
+### Chapter 19 Lab
+* Didn't run it, but looked over the files. Feels like we're spoofing region, but I could see how the configuration running on a cloud service provider would then follow the desired region.
 
 ## Once complete:
 - [ ] read https://en.wikipedia.org/wiki/Kubernetes

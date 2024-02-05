@@ -7000,13 +7000,130 @@ Shame. The book has:
 ![](./ch19/Figure_19-9.jpg)
 
 
+## deploy the manifests:
+`kubectl apply -f pi/`
+```
+deployment.apps/pi-web created
+horizontalpodautoscaler.autoscaling/pi-cpu created
+service/pi-web created
+```
+
+## wait for the Pod to start:
+`kubectl wait --for=condition=ContainersReady pod -l app=pi-web`
+```
+pod/pi-web-594d9b6db-jpnvz condition met
+```
+
+## print the status of the autoscaler:
+`kubectl get hpa pi-cpu` # Horizontal Pod Autoscaling
+```
+NAME     REFERENCE           TARGETS         MINPODS   MAXPODS   REPLICAS   AGE
+pi-cpu   Deployment/pi-web   <unknown>/75%   1         5         0          18s
+...
+NAME     REFERENCE           TARGETS         MINPODS   MAXPODS   REPLICAS   AGE
+pi-cpu   Deployment/pi-web   <unknown>/75%   1         5         1          18m
+```
+
+### run the load script--on Windows: 
+`.\loadpi.ps1`
+```
+# pi @ 100K do is hard on CPU:
+$url = $(kubectl get svc pi-web -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:8031/?dp=100000')
+
+# two calls is enough to trigger HPA:
+Start-Process -NoNewWindow curl $url
+Start-Process -NoNewWindow curl $url
+```
+
+### OR on Linux/macOS:
+`chmod +x ./loadpi.sh && ./loadpi.sh`
+No output, but here's the script:
+```
+#!/bin/bash
+
+# pi @ 100K do is hard on CPU:
+URL=$(kubectl get svc pi-web -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:8031/?dp=100000')
+
+# two calls is enough to trigger HPA:
+curl -s $URL > /dev/null & 
+curl -s $URL > /dev/null &
+```
+
+### give the metrics-server and HPA time to work:
+`sleep 60`
+
+### confirm that the Deployment has been scaled up:
+`kubectl get hpa pi-cpu`
+```
+NAME     REFERENCE           TARGETS         MINPODS   MAXPODS   REPLICAS   AGE
+pi-cpu   Deployment/pi-web   <unknown>/75%   1         5         1          20m
+```
+
+### print the Pod compute usage:
+`kubectl top pods -l app=pi-web`
+```
+error: Metrics API not available
+```
+
+### update the HPA settings:
+`kubectl apply -f pi/update/hpa-cpu-v2.yaml`
+```
+error: resource mapping not found for name: "pi-cpu" namespace: "" from "pi/update/hpa-cpu-v2.yaml": no matches for kind "HorizontalPodAutoscaler" in version "autoscaling/v2beta2"
+ensure CRDs are installed first
+```
+OK... skipping the below then.
+
+### run the load script again--on Windows:
+`.\loadpi.ps1`
+
+### OR on macOS/Linux:
+`./loadpi.sh`
+
+### wait for the HPA to scale up:
+`sleep 60`
+
+### confirm there are more replicas:
+`kubectl get hpa pi-cpu # go up`
+
+### there’s no more load, wait for the HPA to scale down:
+`sleep 60`
+
+### confirm there’s only one replica:
+`kubectl get hpa pi-cpu`
+
+### print the Deployment status:
+`kubectl get deploy pi-web`
+
+## Section 19.4: Protecting resources with preemption and priorities
+
+I don't think this will work, but trying it...
+
+### from the kiamol source root, create a VM with Vagrant:
+`cd ch01/vagrant/`
+
+### create the new VM:
+`vagrant up`
+Yeah... `No usable default provider could be found for your system.`
+
+### connect to the VM:
+`vagrant ssh`
+
+### switch to this chapter’s source inside the VM:
+`cd /kiamol/ch19`
+
+### create a customized Kind cluster:
+`kind create cluster --name kiamol-ch19--config ./kind/kiamol-ch19-config.yaml --image kindest/node:v1.18.8`
+
+### wait for the node to be ready:
+`kubectl -n kube-system wait --for=condition=Ready node --all`
+
+### print the VM’s memory stats:
+`./kind/print-memory.sh`
 
 
+## Section 19.5: Understanding the controls for managing workloads
 
-
-
-
-
+ 
 
 
 
