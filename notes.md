@@ -145,6 +145,13 @@ Still not fully understanding, but https://en.wikipedia.org/wiki/Kubernetes#Daem
 * [cert-manager](https://cert-manager.io/) is "a CNEF project that adds TLS certificate management to Kubernetes"
 * https://operatorhub.io/
 
+### Section 20.5: Understanding when to extend Kubernetes
+* guidelines:
+  * ensure you need to (not another existing way)
+  * see if a third-party operator exists
+  * start simple --> focus on user experience
+  * make use of development toolkits if writing in Go
+
 ## Once complete:
 - [ ] read https://en.wikipedia.org/wiki/Kubernetes
 - [ ] consider a certification. See page 8 for some info

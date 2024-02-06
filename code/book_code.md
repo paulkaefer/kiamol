@@ -7418,6 +7418,25 @@ Possibly as easy as changing the version in the command...
 `kubectl get crd -l app=mysql-operator`
 
 
+## Cleanup
+```bash
+kubectl delete all,crd,secret,clusterrolebinding,clusterrole,serviceaccount,ns -l kiamol=ch20
+kubectl delete pvc -l app=mysql-operator
+kubectl delete configmap mysql-operator-leader-election
+```
+Outputs:
+```
+deployment.apps "user-controller" deleted
+customresourcedefinition.apiextensions.k8s.io "users.ch20.kiamol.net" deleted
+clusterrolebinding.rbac.authorization.k8s.io "user-controller" deleted
+clusterrole.rbac.authorization.k8s.io "user-controller" deleted
+serviceaccount "user-controller" deleted
+namespace "kiamol-ch20-authn-sre" deleted
+
+No resources found
+
+Error from server (NotFound): configmaps "mysql-operator-leader-election" not found
+```
 
 
 
