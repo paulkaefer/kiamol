@@ -138,6 +138,13 @@ Still not fully understanding, but https://en.wikipedia.org/wiki/Kubernetes#Daem
 ### Chapter 19 Lab
 * Didn't run it, but looked over the files. Feels like we're spoofing region, but I could see how the configuration running on a cloud service provider would then follow the desired region.
 
+## Chapter 20
+* it's very common to extend Kubernetes
+* defining custom resources --> felt like defining classes
+* "The [user] CRD is difficult to read because of the schema..." I don't think it's too bad. I'm used to YAML by now ;-)
+* [cert-manager](https://cert-manager.io/) is "a CNEF project that adds TLS certificate management to Kubernetes"
+* https://operatorhub.io/
+
 ## Once complete:
 - [ ] read https://en.wikipedia.org/wiki/Kubernetes
 - [ ] consider a certification. See page 8 for some info

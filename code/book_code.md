@@ -7123,7 +7123,309 @@ Yeah... `No usable default provider could be found for your system.`
 
 ## Section 19.5: Understanding the controls for managing workloads
 
+
+# Chapter 20: Extending Kubernetes with custom resources and Operators
+
+## Section 20.1: How to extend Kubernetes with custom resources
+
+### switch to this chapter’s source:
+`cd ch20`
  
+### deploy the CRD:
+`kubectl apply -f todo-custom/`
+```
+customresourcedefinition.apiextensions.k8s.io/todos.ch20.kiamol.net created
+```
+
+### print CRD details:
+`kubectl get crd -l kiamol=ch20`
+```
+NAME                    CREATED AT
+todos.ch20.kiamol.net   2024-02-06T20:08:47Z
+```
+
+### create some custom resources:
+`kubectl apply -f todo-custom/items/`
+```
+todo.ch20.kiamol.net/ch20 created
+todo.ch20.kiamol.net/ch21 created
+```
+
+### list all the resources:
+`kubectl get todos`
+```
+NAME   AGE
+ch20   5s
+ch21   5s
+```
+
+### update the CRD, adding output columns:
+`kubectl apply -f todo-custom/update/`
+
+### list the to-do resources again:
+`kubectl get todos`
+```
+NAME   ITEM                 DUE
+ch20   Finish KIAMOL Ch20   2020-07-26
+ch21   Plan KIAMOL Ch21     2020-07-27
+```
+
+### delete one of the resources:
+`kubectl delete todo ch21`
+```
+todo.ch20.kiamol.net "ch21" deleted
+```
+
+### show the detail of the other resource:
+`kubectl describe todo ch20`
+```
+Name:         ch20
+Namespace:    default
+Labels:       kiamol=ch20
+Annotations:  <none>
+API Version:  ch20.kiamol.net/v1
+Kind:         ToDo
+Metadata:
+  Creation Timestamp:  2024-02-06T20:09:03Z
+  Generation:          1
+  Resource Version:    950401
+  UID:                 53048109-6917-415e-83fc-04ac9a3f9053
+Spec:
+  Due Date:  2020-07-26
+  Item:      Finish KIAMOL Ch20
+Events:      <none>
+```
+
+### list the CRDs registered in your cluster:
+`kubectl get crds`
+```
+NAME                    CREATED AT
+todos.ch20.kiamol.net   2024-02-06T20:08:47Z
+```
+
+### delete the to-do item CRD:
+`kubectl delete crd todos.ch20.kiamol.net`
+```
+customresourcedefinition.apiextensions.k8s.io "todos.ch20.kiamol.net" deleted
+```
+
+### try to list the to-do items:
+`kubectl get todos`
+```
+Error from server (NotFound): Unable to list "ch20.kiamol.net/v1, Resource=todos": the server could not find the requested resource (get todos.ch20.kiamol.net)
+```
+
+## Section 20.2: Triggering workflows with custom controllers
+
+### deploy the CRD first:
+`kubectl apply -f users/crd/`
+```
+customresourcedefinition.apiextensions.k8s.io/users.ch20.kiamol.net created
+```
+
+### deploy the users:
+`kubectl apply -f users/`
+```
+user.ch20.kiamol.net/sre3 created
+user.ch20.kiamol.net/tester3 created
+```
+
+### print the user list:
+`kubectl get users`
+```
+NAME      EMAIL                GROUP
+sre3      sre3@kiamol.net      sre
+tester3   tester3@kiamol.net   test
+```
+
+### on Windows, you’ll need to run this so you can decode Secrets:
+`. .\base64.ps1`
+```
+function Convert-ToBase64 {
+  param (
+    [parameter(ValueFromPipeline)]
+    [string] $text,
+    [switch] $d
+  )
+  if ($d){
+    [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($text))
+  }
+  else {
+    [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($text))
+  }
+}
+
+Set-Alias base64  Convert-ToBase64
+```
+
+### deploy the custom controller:
+`kubectl apply -f user-controller/`
+```
+serviceaccount/user-controller created
+clusterrole.rbac.authorization.k8s.io/user-controller created
+clusterrolebinding.rbac.authorization.k8s.io/user-controller created
+deployment.apps/user-controller created
+```
+
+### wait for it to spin up:
+`kubectl wait --for=condition=ContainersReady pod -l app=user-controller`
+```
+pod/user-controller-56c5d885bd-mrgbr condition met
+```
+
+### check the controller logs:
+`kubectl logs -l app=user-controller`
+```
+* Watching for custom object events
+** Created group namespace: kiamol-ch20-authn-sre
+** Created service account: sre3, in group namespace: kiamol-ch20-authn-sre
+** Created token: sre3-token, in group namespace: kiamol-ch20-authn-sre
+* Handled event: Added, for user: sre3
+** Created group namespace: kiamol-ch20-authn-test
+** Created service account: tester3, in group namespace: kiamol-ch20-authn-test
+** Created token: tester3-token, in group namespace: kiamol-ch20-authn-test
+* Handled event: Added, for user: tester3
+```
+
+### print the Secret, which is the user’s token:
+`kubectl get secret tester3-token -n kiamol-ch20-authn-test -o jsonpath='{.data.token}' | base64 -d`
+```
+eyJhbGciOi...YKOadxhQww
+```
+"Please don't use this controller as your production authentication system"
+
+### deploy a new user in the same SRE group:
+`kubectl apply -f users/update/`
+```
+user.ch20.kiamol.net/sre4 created
+```
+
+### print the latest controller logs:
+`kubectl logs -l app=user-controller --tail 4`
+```
+** Group namespace exists: kiamol-ch20-authn-sre
+** Created service account: sre4, in group namespace: kiamol-ch20-authn-sre
+** Created token: sre4-token, in group namespace: kiamol-ch20-authn-sre
+* Handled event: Added, for user: sre4
+```
+
+### confirm the new user has a token:
+`kubectl get secret sre4-token -n kiamol-ch20-authn-sre -o jsonpath='{.data.token}' | base64 -d`
+```
+eyJhbG...v0W-fQ
+```
+
+### check the authentication namespaces:
+`kubectl get ns -l kiamol=ch20`
+```
+NAME                     STATUS   AGE
+kiamol-ch20-authn-sre    Active   9m37s
+kiamol-ch20-authn-test   Active   9m37s
+```
+
+### delete the test user:
+`kubectl delete user tester3`
+```
+user.ch20.kiamol.net "tester3" deleted
+```
+
+### print the controller logs:
+`kubectl logs -l app=user-controller --tail 3`
+```
+** Deleted service account: tester3, in group namespace: kiamol-ch20-authn-test
+** No accounts left, deleted namespace: kiamol-ch20-authn-test
+* Handled event: Deleted, for user: tester3
+```
+
+### confirm the tester namespace has been removed:
+`kubectl get ns -l kiamol=ch20`
+```
+NAME                    STATUS   AGE
+kiamol-ch20-authn-sre   Active   10m
+```
+
+## Section 20.3: Using Operators to manage third-party components
+
+### deploy the CRDs and RBAC rules for the Operator:
+`kubectl apply -f nats/operator/00-prereqs.yaml`
+```
+serviceaccount/nats-operator created
+clusterrolebinding.rbac.authorization.k8s.io/nats-operator-binding created
+clusterrole.rbac.authorization.k8s.io/nats-operator created
+serviceaccount/nats-server created
+clusterrole.rbac.authorization.k8s.io/nats-server created
+clusterrolebinding.rbac.authorization.k8s.io/nats-server-binding created
+```
+
+### deploy the Operator itself:
+`kubectl apply -f nats/operator/10-deployment.yaml`
+```
+deployment.apps/nats-operator created
+```
+
+### wait for it to spin up:
+`kubectl wait --for=condition=ContainersReady pod -l name=nats-operator`
+```
+error: timed out waiting for the condition on pods/nats-operator-5965cf464f-tdqnq
+```
+...and again.
+
+### list the CRDs to see the new NATS types:
+`kubectl get crd`
+```
+NAME                    CREATED AT
+users.ch20.kiamol.net   2024-02-06T20:20:42Z
+```
+
+### deploy the queue spec from listing 20.5:
+`kubectl apply -f todo-list/msgq/`
+```
+error: resource mapping not found for name: "todo-list-queue" namespace: "" from "todo-list/msgq/todo-list-queue.yaml": no matches for kind "NatsCluster" in version "nats.io/v1alpha2"
+ensure CRDs are installed first
+```
+Ok, will skip the next few...
+
+### list the queues:
+`kubectl get nats`
+
+### list the Pods created by the Operator:
+`kubectl get pods -l app=nats`
+
+### list the Services:
+`kubectl get svc -l app=nats`
+
+### list Secrets:
+`kubectl get secrets -l app=nats`
+
+
+### add the Helm repository for the Operator:
+`helm repo add presslabs https://presslabs.github.io/charts`
+```
+"presslabs" has been added to your repositories
+```
+ 
+### deploy a known version:
+`helm install mysql-operator presslabs/mysql-operator --version v0.4.0 --atomic`
+```
+Error: INSTALLATION FAILED: chart "mysql-operator" matching v0.4.0 not found in presslabs index. (try 'helm repo update'): no chart name found
+```
+Possibly as easy as changing the version in the command...
+ 
+### wait for the Operator Pod to spin up:
+`kubectl wait --for=condition=ContainersReady pod -l app=mysql-operator`
+ 
+### list the CRDs it installs:
+`kubectl get crd -l app=mysql-operator`
+
+
+
+
+
+
+
+
+
+
 
 
 
