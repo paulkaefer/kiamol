@@ -152,6 +152,10 @@ Still not fully understanding, but https://en.wikipedia.org/wiki/Kubernetes#Daem
   * start simple --> focus on user experience
   * make use of development toolkits if writing in Go
 
+## Chapter 21
+* "can't easily move your AWS Lambda components to Azure Functions", so Kubernetes is a good alternative for serverless functions "that give you a very Lambda—like experience"
+  * options include the Knative project from Google and Kubeless (no longer actively maintained... kubeless.io --> https://github.com/vmware-archive/kubeless)
+
 ## Once complete:
 - [ ] read https://en.wikipedia.org/wiki/Kubernetes
 - [ ] consider a certification. See page 8 for some info

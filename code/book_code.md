@@ -7438,15 +7438,212 @@ No resources found
 Error from server (NotFound): configmaps "mysql-operator-leader-election" not found
 ```
 
+# Chapter 21: Running serverless functions in Kubernetes
 
+## Section 21.1: How serverless platforms work in Kubernetes
 
+### switch to this chapter’s source:
+`cd ch21`
 
+### deploy the CRDs and controllers:
+`kubectl apply -f kubeless/`
+```
+namespace/kubeless created
+configmap/kubeless-config created
+deployment.apps/kubeless-controller-manager created
+serviceaccount/controller-acct created
+resource mapping not found for name: "kubeless-controller-deployer" namespace: "" from "kubeless/kubeless-v1.0.7.yaml": no matches for kind "ClusterRole" in version "rbac.authorization.k8s.io/v1beta1"
+ensure CRDs are installed first
+resource mapping not found for name: "kubeless-controller-deployer" namespace: "" from "kubeless/kubeless-v1.0.7.yaml": no matches for kind "ClusterRoleBinding" in version "rbac.authorization.k8s.io/v1beta1"
+ensure CRDs are installed first
+resource mapping not found for name: "functions.kubeless.io" namespace: "" from "kubeless/kubeless-v1.0.7.yaml": no matches for kind "CustomResourceDefinition" in version "apiextensions.k8s.io/v1beta1"
+ensure CRDs are installed first
+resource mapping not found for name: "httptriggers.kubeless.io" namespace: "" from "kubeless/kubeless-v1.0.7.yaml": no matches for kind "CustomResourceDefinition" in version "apiextensions.k8s.io/v1beta1"
+ensure CRDs are installed first
+resource mapping not found for name: "cronjobtriggers.kubeless.io" namespace: "" from "kubeless/kubeless-v1.0.7.yaml": no matches for kind "CustomResourceDefinition" in version "apiextensions.k8s.io/v1beta1"
+ensure CRDs are installed first
+```
+Not encouraging.
 
+### wait for the controller to start:
+`kubectl wait --for=condition=ContainersReady pod -l kubeless=controller -n kubeless`
+As I feared:
+```
+error: timed out waiting for the condition on pods/kubeless-controller-manager-5fcdcfb898-vlxz6
+```
 
+### list the CRDs:
+`kubectl get crd`
+```
+No resources found
+```
 
+Will still try the next exercises:
 
+### create a Pod with the Kubeless CLI installed:
+`kubectl apply -f kubeless-cli.yaml`
+```
+serviceaccount/kubeless-cli created
+pod/kubeless-cli created
+clusterrolebinding.rbac.authorization.k8s.io/kubeless-cli created
+```
 
+### wait for it to start:
+`kubectl wait --for=condition=ContainersReady pod kubeless-cli`
+```
+pod/kubeless-cli condition met
+```
+Woot!
 
+### connect to a session in the Pod:
+`kubectl exec -it kubeless-cli -- sh`
+
+### print the Kubeless setup:
+`kubeless get-server-config`
+```
+# kubeless get-server-config
+FATA[0001] Unable to read the configmap: Error while fetching config location: the server could not find the requested resource 
+```
+
+### stay connected to the Pod for the next exercise
+
+### inside the Pod is a copy of the book’s code:
+`cd /kiamol/ch21`
+
+### deploy the Java function from listing 21.1:
+`kubeless function deploy hello-kiamol --runtime java11 --handler Kiamol.hello --from-file functions/hello-kiamol/hello-kiamol.java`
+```
+WARN[0000] Error while fetching config location: the server could not find the requested resource. Runtime check is disabled. 
+INFO[0000] Deploying function...                        
+FATA[0000] Failed to deploy hello-kiamol. Received:
+the server could not find the requested resource (post functions.kubeless.io)
+```
+
+### list all functions:
+`kubeless function ls`
+```
+FATA[0000] the server could not find the requested resource (get functions.kubeless.io) 
+```
+Kube, I am your fata!
+
+### list Pods and ConfigMaps for the function:
+Commands:
+```
+kubectl get pods -l function=hello-kiamol
+kubectl get cm -l function=hello-kiamol
+```
+Output:
+```
+No resources found in default namespace.
+No resources found in default namespace.
+```
+
+### print the details, showing the build steps:
+`kubectl describe pod -l function=hello-kiamol | grep INFO | tail -n 5`
+```
+No resources found in default namespace.
+```
+
+Skipped the rest of the code samples this channel.
+
+## Section 21.2: Triggering functions from HTTP requests
+
+### deploy all the components of the app:
+`kubectl apply -f todo-list/config/ -f todo-list/db/ -f todo-list/msgq/ -f todo-list/web/ -f todo-list/save-handler/`
+```
+configmap/todo-list-config created
+secret/todo-list-secret created
+deployment.apps/todo-db created
+persistentvolumeclaim/todo-db-pvc created
+secret/todo-db-secret configured
+service/todo-db created
+configmap/nats-config created
+service/message-queue created
+statefulset.apps/nats created
+service/todo-web created
+deployment.apps/todo-web created
+deployment.apps/todo-save-handler created
+```
+
+### wait for the application Pods to start:
+`kubectl wait --for=condition=ContainersReady pod -l app=todo-list`
+```
+pod/todo-save-handler-54f666cb49-ppnxs condition met
+pod/todo-web-647bdcb95d-6m25n condition met
+```
+
+### fetch the URL for the app:
+`kubectl get svc todo-web -o jsonpath='http://{.status.loadBalancer.ingress[0].*}:8021'`
+```
+http://:8021
+```
+Interesting!
+
+### browse the app to confirm it's working
+Nope...
+
+### run an Nginx ingress controller:
+`kubectl apply -f ingress-nginx/`
+```
+namespace/kiamol-ingress-nginx created
+configmap/ingress-nginx-controller created
+service/ingress-nginx-controller created
+deployment.apps/ingress-nginx-controller created
+serviceaccount/ingress-nginx created
+clusterrole.rbac.authorization.k8s.io/ingress-nginx created
+clusterrolebinding.rbac.authorization.k8s.io/ingress-nginx created
+role.rbac.authorization.k8s.io/ingress-nginx created
+rolebinding.rbac.authorization.k8s.io/ingress-nginx created
+```
+
+### deploy ingress rules for the app and API:
+`kubectl apply -f todo-list/web/ingress/ -f functions/todo-api/ingress/`
+```
+service/todo-web configured
+resource mapping not found for name: "todo-web" namespace: "" from "todo-list/web/ingress/ingress.yaml": no matches for kind "Ingress" in version "networking.k8s.io/v1beta1"
+ensure CRDs are installed first
+resource mapping not found for name: "todo-api" namespace: "" from "functions/todo-api/ingress/ingress.yaml": no matches for kind "Ingress" in version "networking.k8s.io/v1beta1"
+ensure CRDs are installed first
+```
+
+### print the ingress rules:
+`kubectl get ingress`
+```
+No resources found in default namespace.
+```
+
+### add domains to your hosts file--on Windows:
+`.\add-todo-to-hosts.ps1`
+```PowerShell
+$controller='ingress-nginx-controller'
+$ns='kiamol-ingress-nginx'
+$ip=$(kubectl get svc $controller -o jsonpath='{.status.loadBalancer.ingress[0].*}' -n $ns)
+if ($ip -eq 'localhost') {
+  $ip='127.0.0.1'
+}
+
+Add-Content -Value "$ip  todo.kiamol.local$([Environment]::NewLine)$ip  api.todo.kiamol.local" -Path C:/windows/system32/drivers/etc/hosts
+```
+
+### OR on Linux/macOS:
+`chmod +x ./add-todo-to-hosts.sh && ./add-todo-to-hosts.sh`
+```
+#!/bin/sh
+
+CONTROLLER='ingress-nginx-controller'
+NS='kiamol-ingress-nginx'
+IP=$(kubectl get svc $CONTROLLER -o jsonpath='{.status.loadBalancer.ingress[0].*}' -n $NS)
+if [ "$IP" = "localhost" ]; then 
+    IP='127.0.0.1'
+fi
+
+echo "\n$IP  todo.kiamol.local\n$IP  api.todo.kiamol.local" | sudo tee -a /etc/hosts
+```
+
+### insert a new item with the API:
+`curl --data 'Plan KIAMOL ch22' http://api.todo.kiamol.local/todos`
+
+### browse to http://todo.kiamol.local/list
 
 
 
