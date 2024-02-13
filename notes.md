@@ -167,6 +167,7 @@ Still not fully understanding, but https://en.wikipedia.org/wiki/Kubernetes#Daem
 
 ## Appendix A. Packaging applications from source code into Docker Images
 * "Building Docker images is easy."
+* I see exercises are from [the Docker book](https://github.com/sixeyed/diamol/tree/master), so I might just work through that next (per plan from the beginning!).
 
 ## Once complete:
 - [ ] read https://en.wikipedia.org/wiki/Kubernetes
