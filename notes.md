@@ -156,6 +156,18 @@ Still not fully understanding, but https://en.wikipedia.org/wiki/Kubernetes#Daem
 * "can't easily move your AWS Lambda components to Azure Functions", so Kubernetes is a good alternative for serverless functions "that give you a very Lambda—like experience"
   * options include the Knative project from Google and Kubeless (no longer actively maintained... kubeless.io --> https://github.com/vmware-archive/kubeless)
 
+## Chapter 22: "Never the end"
+* "The main sources of further reading are the official Kubernetes website (https://kubernetes.io), which contains documentation and guides, and the API Reference (https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.20/)"
+* "Chapter 2 introduced the YAML spec we used in every other chapter, but I didn’t cover Kustomize. That’s a tool that simplifies YAML specs."
+* A few other suggested concepts by chapter, but since the book examples are a bit outdated & I'm sure lots of new projects have sprung up since publication, I'm not copying all of them here. *GitOps* is mentioned, though.
+* "Rancher Kubernetes Engine (RKE) is an open source product from Rancher that simplifies the installation and management of on-premises clusters."
+* choosing a Kubernetes platform: https://landscape.cncf.io/ is super cool
+* public special interest groups (SIGs) have meetings, Slack channels, and tend to use GitHub
+* find the author @ kubernetes.slack.com
+
+## Appendix A. Packaging applications from source code into Docker Images
+* "Building Docker images is easy."
+
 ## Once complete:
 - [ ] read https://en.wikipedia.org/wiki/Kubernetes
 - [ ] consider a certification. See page 8 for some info
