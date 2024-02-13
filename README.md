@@ -8,3 +8,5 @@ See [the official book repo](https://github.com/sixeyed/kiamol) for resources.
 - [ ] rename this to just paulkaefer/kiamol?
 - [ ] join the forum (see p. xviii) & link it here
 
+## See also
+* TBD: my *DIAMOL* repo
