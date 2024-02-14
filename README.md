@@ -9,4 +9,4 @@ See [the official book repo](https://github.com/sixeyed/kiamol) for resources.
 - [ ] join the forum (see p. xviii) & link it here
 
 ## See also
-* TBD: my *DIAMOL* repo
+* [my *DIAMOL* repo](https://github.com/paulkaefer/diamol_code)
